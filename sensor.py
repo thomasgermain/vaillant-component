@@ -9,8 +9,9 @@ from vr900connector.model import BoilerStatus, Room, Component
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.components.sensor import DEVICE_CLASS_TEMPERATURE, DOMAIN, DEVICE_CLASS_PRESSURE
 
-from . import HUB, BaseVaillantEntity, DOMAIN as VAILLANT, CONF_SENSOR_ROOM_TEMPERATURE,  CONF_SENSOR_ZONE_TEMPERATURE,\
-    CONF_SENSOR_OUTDOOR_TEMPERATURE, CONF_SENSOR_HOT_WATER_TEMPERATURE
+from . import HUB, BaseVaillantEntity, CONF_SENSOR_ROOM_TEMPERATURE,  CONF_SENSOR_ZONE_TEMPERATURE,\
+    CONF_SENSOR_OUTDOOR_TEMPERATURE, CONF_SENSOR_HOT_WATER_TEMPERATURE, CONF_SENSOR_BOILER_WATER_TEMPERATURE, \
+    CONF_SENSOR_BOILER_WATER_PRESSURE
 
 PRESSURE_BAR = 'bar'
 
@@ -23,24 +24,26 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     HUB.update_system()
 
     if HUB.system:
-        if HUB.system.outdoor_temperature:  # and config[CONF_SENSOR_OUTDOOR_TEMPERATURE]:
+        if HUB.system.outdoor_temperature and HUB.config[CONF_SENSOR_OUTDOOR_TEMPERATURE]:
             sensors.append(VaillantOutdoorTemperatureSensor(HUB.system.outdoor_temperature))
 
         if HUB.system.boiler_status:
-            sensors.append(VaillantBoilerWaterPressureSensor(HUB.system.boiler_status))
-            sensors.append(VaillantBoilerTemperatureSensor(HUB.system.boiler_status))
+            if HUB.config[CONF_SENSOR_BOILER_WATER_TEMPERATURE]:
+                sensors.append(VaillantBoilerTemperatureSensor(HUB.system.boiler_status))
+            if HUB.config[CONF_SENSOR_BOILER_WATER_PRESSURE]:
+                sensors.append(VaillantBoilerWaterPressureSensor(HUB.system.boiler_status))
 
-        # if config[CONF_SENSOR_ZONE_TEMPERATURE]:
-        for zone in HUB.system.zones:
-            if not zone.rbr:
-                sensors.append(VaillantTemperatureSensor(zone))
+        if HUB.config[CONF_SENSOR_ZONE_TEMPERATURE]:
+            for zone in HUB.system.zones:
+                if not zone.rbr:
+                    sensors.append(VaillantTemperatureSensor(zone))
 
-        # if config[CONF_SENSOR_ROOM_TEMPERATURE]:
-        for room in HUB.system.rooms:
-            sensors.append(VaillantTemperatureSensor(room))
+        if HUB.config[CONF_SENSOR_ROOM_TEMPERATURE]:
+            for room in HUB.system.rooms:
+                sensors.append(VaillantTemperatureSensor(room))
 
-        # if HUB.system.hot_water and config[CONF_SENSOR_HOT_WATER_TEMPERATURE]:
-        sensors.append(VaillantTemperatureSensor(HUB.system.hot_water))
+        if HUB.system.hot_water and HUB.config[CONF_SENSOR_HOT_WATER_TEMPERATURE]:
+            sensors.append(VaillantTemperatureSensor(HUB.system.hot_water))
 
     _LOGGER.info("Adding %s sensor entities", len(sensors))
 

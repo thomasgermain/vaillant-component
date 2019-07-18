@@ -12,7 +12,6 @@ from homeassistant.util import Throttle, slugify
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers import discovery
 
-
 REQUIREMENTS = ['vr900-connector==0.3.1']
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,6 +35,8 @@ CONF_BINARY_SENSOR_ROOM_WINDOW = 'binary_sensor_room_window'
 CONF_BINARY_SENSOR_ROOM_CHILD_LOCK = 'binary_sensor_room_child_lock'
 CONF_BINARY_SENSOR_DEVICE_BATTERY = 'binary_sensor_device_battery'
 CONF_BINARY_SENSOR_DEVICE_RADIO_REACH = 'binary_sensor_device_radio_reach'
+CONF_SENSOR_BOILER_WATER_TEMPERATURE = 'sensor_boiler_water_temperature'
+CONF_SENSOR_BOILER_WATER_PRESSURE = 'sensor_boiler_water_pressure'
 CONF_SENSOR_ROOM_TEMPERATURE = 'sensor_room_temperature'
 CONF_SENSOR_ZONE_TEMPERATURE = 'sensor_zone_temperature'
 CONF_SENSOR_OUTDOOR_TEMPERATURE = 'sensor_outdoor_temperature'
@@ -45,16 +46,13 @@ CONF_ROOM_CLIMATE = 'room_climate'
 CONF_ZONE_CLIMATE = 'zone_climate'
 
 DEFAULT_EMPTY = ''
-MIN_SCAN_INTERVAL = timedelta(minutes=5)
+MIN_SCAN_INTERVAL = timedelta(minutes=1)
 DEFAULT_SCAN_INTERVAL = timedelta(minutes=5)
 DEFAULT_SMART_PHONE_ID = 'homeassistant'
 DEFAULT_QUICK_VETO_DURATION = 3 * 60
 QUICK_VETO_MIN_DURATION = 0.5 * 60
 QUICK_VETO_MAX_DURATION = 24 * 60
 
-
-# TODO translation, see zha component
-# TODO config to enable/disable binary-sensor, sensor, climate, water heater etc. IDK how to handle the config
 # TODO add TimeProgram as state attr for climate and water_heater ?
 CONFIG_SCHEMA = vol.Schema({
     DOMAIN: vol.Schema({
@@ -73,6 +71,8 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(CONF_BINARY_SENSOR_ROOM_CHILD_LOCK, default=True): cv.boolean,
         vol.Optional(CONF_BINARY_SENSOR_DEVICE_BATTERY, default=True): cv.boolean,
         vol.Optional(CONF_BINARY_SENSOR_DEVICE_RADIO_REACH, default=True): cv.boolean,
+        vol.Optional(CONF_SENSOR_BOILER_WATER_TEMPERATURE, default=True): cv.boolean,
+        vol.Optional(CONF_SENSOR_BOILER_WATER_PRESSURE, default=True): cv.boolean,
         vol.Optional(CONF_SENSOR_ROOM_TEMPERATURE, default=True): cv.boolean,
         vol.Optional(CONF_SENSOR_ZONE_TEMPERATURE, default=True): cv.boolean,
         vol.Optional(CONF_SENSOR_OUTDOOR_TEMPERATURE, default=True): cv.boolean,
@@ -89,8 +89,8 @@ HUB = None
 async def async_setup(hass, config):
     global HUB
 
-    HUB = VaillantHub(config[DOMAIN][CONF_USERNAME], config[DOMAIN][CONF_PASSWORD], config[DOMAIN][CONF_SMARTPHONE_ID],
-                      config[DOMAIN][CONF_QUICK_VETO_DURATION])
+    HUB = VaillantHub(config[DOMAIN])
+
     HUB.update_system = Throttle(
         config[DOMAIN][CONF_SCAN_INTERVAL])(HUB.update_system)
 
@@ -106,24 +106,33 @@ async def async_setup(hass, config):
 
 class VaillantHub:
 
-    def __init__(self, username, password, smart_phone_id, quick_veto_duration):
+    def __init__(self, config):
         from vr900connector.systemmanager import SystemManager
         from vr900connector.model import System
 
-        self._manager = SystemManager(username, password,
-                                      smart_phone_id)
+        self._manager = SystemManager(config[CONF_USERNAME], config[CONF_PASSWORD], config[CONF_SMARTPHONE_ID])
         self._listeners = []
         self.system: System = None
-        self._quick_veto_duration = quick_veto_duration
+        self._quick_veto_duration = config[CONF_QUICK_VETO_DURATION]
+        self.config = config
 
     def update_system(self):
         """
         Fetches vaillant system. This function is throttled in order to avoid fetching full system for each platform
         entity refresh.
         """
-        self._manager.request_hvac_update()
-        self.system = self._manager.get_system()
-        _LOGGER.info("update_system successfully fetched")
+        try:
+            self._manager.request_hvac_update()
+        except Exception as err:
+            _LOGGER.info("Error while requesting hvac update", err)
+            # Sometimes the API returns HTTP 409 and the connector throws an error, it will prevent update_system
+            # to work correctly.
+
+        try:
+            self.system = self._manager.get_system()
+            _LOGGER.info("update_system successfully fetched")
+        except Exception as err:
+            _LOGGER.error("Enable to fetch data from vaillant API", err)
 
     def find_component(self, comp):
         from vr900connector.model import Zone, Room, HotWater, Circulation
@@ -255,9 +264,6 @@ class VaillantHub:
                 self.system.set_zone(zone.id, self._manager.get_zone(zone))
                 entity.async_schedule_update_ha_state(True)
 
-    def set_holiday_mode(self):
-        self.refresh_listening_entities()
-
     def _set_quick_mode(self, quick_mode):
         from vr900connector.model import QuickMode
 
@@ -266,7 +272,7 @@ class VaillantHub:
             mode = QuickMode[quick_mode]
             ok = self._manager.set_quick_mode(self.system.quick_mode, mode)
             if ok:
-                _LOGGER.debug("Set quick successfully")
+                _LOGGER.debug("Set quick mode successfully")
                 self.refresh_listening_entities()
             return True
         return False

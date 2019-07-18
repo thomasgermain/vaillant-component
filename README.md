@@ -10,7 +10,7 @@ vaillant:
   password: password
 ```
 
-The component will create 
+## Created entity
 - 1 water_heater, if there is a water heater in your system
 - 1 climate per zone (expect if the zone is controlled by room)
 - 1 climate per room
@@ -28,3 +28,7 @@ The component will create
 - 1 temperature sensor for water_heater
 - 1 sensor for water pressure in boiler
 - 1 temperature sensor for water temperature in boiler
+
+##Todo's
+- handling error messages
+- move to 0.96

@@ -7,7 +7,7 @@ from abc import ABC
 from vr900connector.model import Room, Circulation, Device, BoilerStatus
 
 from homeassistant.components.binary_sensor import BinarySensorDevice, DOMAIN
-from . import DOMAIN as VAILLANT, CONF_BINARY_SENSOR_BOILER_ERROR, CONF_BINARY_SENSOR_CIRCULATION, \
+from . import CONF_BINARY_SENSOR_BOILER_ERROR, CONF_BINARY_SENSOR_CIRCULATION, \
     CONF_BINARY_SENSOR_SYSTEM_ONLINE, CONF_BINARY_SENSOR_SYSTEM_UPDATE, CONF_BINARY_SENSOR_ROOM_WINDOW, \
     CONF_BINARY_SENSOR_ROOM_CHILD_LOCK, CONF_BINARY_SENSOR_DEVICE_BATTERY, CONF_BINARY_SENSOR_DEVICE_RADIO_REACH, \
     HUB, BaseVaillantEntity
@@ -28,27 +28,27 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     HUB.update_system()
 
     if HUB.system:
-        if HUB.system.circulation:  # and config[CONF_BINARY_SENSOR_CIRCULATION]:
+        if HUB.system.circulation and HUB.config[CONF_BINARY_SENSOR_CIRCULATION]:
             sensors.append(VaillantCirculationBinarySensor(HUB.system.circulation))
 
         if HUB.system.boiler_status:
-            # if config[CONF_BINARY_SENSOR_BOILER_ERROR]:
-            sensors.append(VaillantBoilerErrorBinarySensor(HUB.system.boiler_status))
-            # if config[CONF_BINARY_SENSOR_SYSTEM_ONLINE]:
-            sensors.append(VaillantBoxOnlineBinarySensor(HUB.system.boiler_status))
-            # if config[CONF_BINARY_SENSOR_SYSTEM_UPDATE]:
-            sensors.append(VaillantBoxUpdateBinarySensor(HUB.system.boiler_status))
+            if HUB.config[CONF_BINARY_SENSOR_BOILER_ERROR]:
+                sensors.append(VaillantBoilerErrorBinarySensor(HUB.system.boiler_status))
+            if HUB.config[CONF_BINARY_SENSOR_SYSTEM_ONLINE]:
+                sensors.append(VaillantBoxOnlineBinarySensor(HUB.system.boiler_status))
+            if HUB.config[CONF_BINARY_SENSOR_SYSTEM_UPDATE]:
+                sensors.append(VaillantBoxUpdateBinarySensor(HUB.system.boiler_status))
 
         for room in HUB.system.rooms:
-            # if config[CONF_BINARY_SENSOR_ROOM_WINDOW]:
-            sensors.append(VaillantWindowBinarySensor(room))
-            # if config[CONF_BINARY_SENSOR_ROOM_CHILD_LOCK]:
-            sensors.append(VaillantChildLockBinarySensor(room))
+            if HUB.config[CONF_BINARY_SENSOR_ROOM_WINDOW]:
+                sensors.append(VaillantWindowBinarySensor(room))
+            if HUB.config[CONF_BINARY_SENSOR_ROOM_CHILD_LOCK]:
+                sensors.append(VaillantChildLockBinarySensor(room))
             for device in room.devices:
-                # if config[CONF_BINARY_SENSOR_DEVICE_BATTERY]:
-                sensors.append(VaillantRoomDeviceBatteryBinarySensor(device, room))
-                # if config[CONF_BINARY_SENSOR_DEVICE_RADIO_REACH]:
-                sensors.append(VaillantRoomDeviceConnectivityBinarySensor(device, room))
+                if HUB.config[CONF_BINARY_SENSOR_DEVICE_BATTERY]:
+                    sensors.append(VaillantRoomDeviceBatteryBinarySensor(device, room))
+                if HUB.config[CONF_BINARY_SENSOR_DEVICE_RADIO_REACH]:
+                    sensors.append(VaillantRoomDeviceConnectivityBinarySensor(device, room))
 
     _LOGGER.info("Adding %s binary sensor entities", len(sensors))
 
@@ -67,8 +67,8 @@ class VaillantCirculationBinarySensor(BaseVaillantEntity, BinarySensorDevice):
 
         active_mode = self._circulation.active_mode
         return active_mode.current_mode == HeatingMode.ON \
-            or active_mode.sub_mode == HeatingMode.ON \
-            or active_mode == QuickMode.QM_HOTWATER_BOOST
+               or active_mode.sub_mode == HeatingMode.ON \
+               or active_mode == QuickMode.QM_HOTWATER_BOOST
 
     @property
     def available(self):

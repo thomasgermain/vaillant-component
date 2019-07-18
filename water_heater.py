@@ -2,7 +2,7 @@ import logging
 
 from vr900connector.model import System, HotWater, QuickMode, HeatingMode
 
-from . import HUB, BaseVaillantEntity, DOMAIN as VAILLANT, CONF_WATER_HEATER
+from . import HUB, BaseVaillantEntity, CONF_WATER_HEATER
 
 from homeassistant.helpers.temperature import display_temp as show_temp
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS, STATE_ON, STATE_OFF
@@ -30,7 +30,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     entities = []
     HUB.update_system()
 
-    if HUB.system and HUB.system.hot_water:  # and config[CONF_WATER_HEATER]:
+    if HUB.system and HUB.system.hot_water and HUB.config[CONF_WATER_HEATER]:
         entity = VaillantWaterHeater(HUB.system)
         entities.append(entity)
         HUB.add_listener(entity)
