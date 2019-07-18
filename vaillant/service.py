@@ -1,17 +1,29 @@
 """Vaillant service."""
-import logging
 from datetime import datetime
+import logging
 
 import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
-from .const import (ATTR_QUICK_MODE, ATTR_DURATION, ATTR_TEMPERATURE,
-                    ATTR_START_DATE, ATTR_END_DATE)
+
+from .const import (
+    ATTR_DURATION,
+    ATTR_END_DATE,
+    ATTR_QUICK_MODE,
+    ATTR_START_DATE,
+    ATTR_TEMPERATURE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-QUICK_MODES_LIST = ['QM_HOTWATER_BOOST', 'QM_VENTILATION_BOOST', 'QM_PARTY',
-                    'QM_ONE_DAY_AWAY', 'QM_SYSTEM_OFF', 'QM_ONE_DAY_AT_HOME']
+QUICK_MODES_LIST = [
+    "QM_HOTWATER_BOOST",
+    "QM_VENTILATION_BOOST",
+    "QM_PARTY",
+    "QM_ONE_DAY_AWAY",
+    "QM_SYSTEM_OFF",
+    "QM_ONE_DAY_AT_HOME",
+]
 
 SERVICE_REMOVE_QUICK_MODE = "remove_quick_mode"
 SERVICE_REMOVE_HOLIDAY_MODE = "remove_holiday_mode"
@@ -22,38 +34,32 @@ SERVICE_REMOVE_QUICK_VETO = "remove_quick_veto"
 
 SERVICE_REMOVE_QUICK_MODE_SCHEMA = vol.Schema({})
 SERVICE_REMOVE_HOLIDAY_MODE_SCHEMA = vol.Schema({})
-SERVICE_REMOVE_QUICK_VETO_SCHEMA = vol.Schema({
-    vol.Required(ATTR_ENTITY_ID): vol.All(
-        vol.Coerce(str)
-    )
-})
-SERVICE_SET_QUICK_MODE_SCHEMA = vol.Schema({
-    vol.Required(ATTR_QUICK_MODE): vol.All(
-        vol.Coerce(str), vol.In(QUICK_MODES_LIST)
-    )
-})
-SERVICE_SET_HOLIDAY_MODE_SCHEMA = vol.Schema({
-    vol.Required(ATTR_START_DATE): vol.All(
-        vol.Coerce(str)
-    ),
-    vol.Required(ATTR_END_DATE): vol.All(
-        vol.Coerce(str)
-    ),
-    vol.Required(ATTR_TEMPERATURE): vol.All(
-        vol.Coerce(float), vol.Clamp(min=5, max=30)
-    )
-})
-SERVICE_SET_QUICK_VETO_SCHEMA = vol.Schema({
-    vol.Required(ATTR_ENTITY_ID): vol.All(
-        vol.Coerce(str)
-    ),
-    vol.Required(ATTR_TEMPERATURE): vol.All(
-        vol.Coerce(float), vol.Clamp(min=5, max=30)
-    ),
-    vol.Required(ATTR_DURATION): vol.All(
-        vol.Coerce(int), vol.Clamp(min=30, max=1440)
-    )
-})
+SERVICE_REMOVE_QUICK_VETO_SCHEMA = vol.Schema(
+    {vol.Required(ATTR_ENTITY_ID): vol.All(vol.Coerce(str))}
+)
+SERVICE_SET_QUICK_MODE_SCHEMA = vol.Schema(
+    {vol.Required(ATTR_QUICK_MODE): vol.All(vol.Coerce(str), vol.In(QUICK_MODES_LIST))}
+)
+SERVICE_SET_HOLIDAY_MODE_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_START_DATE): vol.All(vol.Coerce(str)),
+        vol.Required(ATTR_END_DATE): vol.All(vol.Coerce(str)),
+        vol.Required(ATTR_TEMPERATURE): vol.All(
+            vol.Coerce(float), vol.Clamp(min=5, max=30)
+        ),
+    }
+)
+SERVICE_SET_QUICK_VETO_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): vol.All(vol.Coerce(str)),
+        vol.Required(ATTR_TEMPERATURE): vol.All(
+            vol.Coerce(float), vol.Clamp(min=5, max=30)
+        ),
+        vol.Required(ATTR_DURATION): vol.All(
+            vol.Coerce(int), vol.Clamp(min=30, max=1440)
+        ),
+    }
+)
 
 SERVICES = {
     SERVICE_REMOVE_QUICK_MODE: {
@@ -93,7 +99,7 @@ class VaillantServiceHandler:
 
     async def remove_quick_mode(self, call):
         """Remove quick mode. It has impact on all components."""
-        self._hub.remove_quick_mode()
+        await self._hub.remove_quick_mode()
 
     async def set_holiday_mode(self, call):
         """Set holiday mode."""
@@ -102,16 +108,16 @@ class VaillantServiceHandler:
         temp = call.data.get(ATTR_TEMPERATURE)
         start = datetime.strptime(start_str, "%Y-%m-%d")
         end = datetime.strptime(end_str, "%Y-%m-%d")
-        self._hub.set_holiday_mode(start, end, temp)
+        await self._hub.set_holiday_mode(start, end, temp)
 
     async def remove_holiday_mode(self, call):
         """Remove holiday mode."""
-        self._hub.remove_holiday_mode()
+        await self._hub.remove_holiday_mode()
 
     async def set_quick_mode(self, call):
         """Set quick mode, it may impact the whole system."""
         quick_mode = call.data.get(ATTR_QUICK_MODE, None)
-        self._hub.set_quick_mode(quick_mode)
+        await self._hub.set_quick_mode(quick_mode)
 
     async def set_quick_veto(self, call):
         """Set quick veto (and remove the existing one) for a given entity."""
@@ -122,7 +128,7 @@ class VaillantServiceHandler:
         entity = self._hub.get_entity(entity_id)
 
         if entity is not None:
-            self._hub.set_quick_veto(entity, temp, duration)
+            await self._hub.set_quick_veto(entity, temp, duration)
         else:
             _LOGGER.debug("Not entity found for id %s", entity_id)
 
@@ -132,6 +138,6 @@ class VaillantServiceHandler:
         entity = self._hub.get_entity(entity_id)
 
         if entity is not None:
-            self._hub.remove_quick_veto(entity)
+            await self._hub.remove_quick_veto(entity)
         else:
             _LOGGER.debug("Not entity found for id %s", entity_id)

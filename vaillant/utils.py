@@ -13,18 +13,18 @@ from .const import (
 )
 
 
-def gen_state_attrs(component, active_mode):
+def gen_state_attrs(component, function, active_mode):
     """Generate state_attrs."""
     attrs = {}
-    attrs.update({ATTR_VAILLANT_MODE: active_mode.current_mode.name})
+    attrs.update({ATTR_VAILLANT_MODE: active_mode.current.name})
 
-    if active_mode.current_mode == OperatingModes.QUICK_VETO:
-        if component.quick_veto.remaining_duration:
+    if active_mode.current == OperatingModes.QUICK_VETO:
+        if component.quick_veto.duration:
             qveto_end = _get_quick_veto_end(component)
             if qveto_end:
                 attrs.update({ATTR_ENDS_AT: qveto_end.isoformat()})
-    elif active_mode.current_mode == OperatingModes.AUTO:
-        setting = _get_next_setting(component)
+    elif active_mode.current == OperatingModes.AUTO:
+        setting = _get_next_setting(function)
         value = setting.setting.name if setting.setting else setting.target_temperature
         attrs.update(
             {
@@ -33,8 +33,8 @@ def gen_state_attrs(component, active_mode):
             }
         )
 
-        if active_mode.sub_mode is not None:
-            attrs.update({ATTR_VAILLANT_SETTING: active_mode.sub_mode.name})
+        if active_mode.sub is not None:
+            attrs.update({ATTR_VAILLANT_SETTING: active_mode.sub.name})
 
     return attrs
 
@@ -42,16 +42,16 @@ def gen_state_attrs(component, active_mode):
 def _get_quick_veto_end(component):
     end_time = None
     # there is no remaining duration for zone
-    if component.quick_veto.remaining_duration:
-        millis = component.quick_veto.remaining_duration * 60 * 1000
+    if component.quick_veto.duration:
+        millis = component.quick_veto.duration * 60 * 1000
         end_time = dt.now() + timedelta(milliseconds=millis)
         end_time = end_time.replace(second=0, microsecond=0)
     return end_time
 
 
-def _get_next_setting(component):
+def _get_next_setting(function):
     now = dt.now()
-    setting = component.time_program.get_next(now)
+    setting = function.time_program.get_next(now)
 
     abs_min = now.hour * 60 + now.minute
 

@@ -12,13 +12,19 @@ You have to provided your username and password (same as multimatic app)
 ## Releases
 ### [1.0.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.0.0)
 First release using config flow
+### [1.1.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.1.0)
+- Move everything to async
+- Bugfix for circulation (no considered `on` when hot water boost was activated)
+- Removed boiler temperature and boiler water pressure in favor of `report` entity (breaking change)
+- Better error handling
+- Automatic re-authentication in case of error
 
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
 - 1 climate entity per zone (expect if the zone is controlled by room) `climate.vaillant_<zone id>`
 - 1 climate entity per room `climate.vaillant_<room name>`
-- 1 binary_sensor entity `binary_sensor.vaillant_circulation` reflecting if the circulation is on or off
+- 1 binary_sensor entity `binary_sensor.vaillant_control_dhw` reflecting if the circulation is on or off
 - 1 binary_sensor entity `climate.vaillant_<room name>_window` per room reflecting the state of the "open window" in a room (this is a feature of the vaillant API, if the temperature is going down pretty fast, the API assumes there is an open window and heating stops)
 - 1 binary_sensor entity `climate.vaillant_<sgtin>_lock`per device reflecting if valves are "child locked" or not
 - 1 binary_sensor entity `binary_sensor.vaillant_<sgtin>_battery` reflecting battery level for each device (VR50, VR51) in the system
@@ -27,8 +33,7 @@ First release using config flow
 - 1 binary_sensor entity `binary_sensor.vaillant_system_online` to know if the vr900/920 is connected to the internet
 - 1 binary_sensor entity `binary_sensor.vaillant_<boiler model>` to know if there is an error at the boiler. **Some boiler does not provide this information, so entity won't be available.**
 - 1 temperature sensor `sensor.vaillant_outdoor_temperature` for outdoor temperature
-- 1 sensor for water `sensor.vaillant_boiler_pressure` pressure in boiler
-- 1 temperature sensor ` sensor.vaillant_boiler_temperature` for water temperature in boiler
+- 1 sensor for each report in live_report
 - 1 binary sensor `binary_sensor.vaillant_quick_mode` to know a quick mode is running on
 - 1 binary sensor ` binary_sensor.vaillant_holiday` to know the holiday mode is on/off
 - dynamic binary sensors if there are extra errors coming from the api.

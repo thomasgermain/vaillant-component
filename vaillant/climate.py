@@ -91,25 +91,18 @@ class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        _LOGGER.debug("Target temp is %s", self.active_mode.target_temperature)
-        return self.active_mode.target_temperature
+        _LOGGER.debug("Target temp is %s", self.active_mode.target)
+        return self.active_mode.target
 
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        return self.component.current_temperature
+        return self.component.temperature
 
     @property
     def is_aux_heat(self) -> Optional[bool]:
         """Return true if aux heater."""
         return False
-
-    @property
-    def state_attributes(self) -> Dict[str, Any]:
-        """Return the optional state attributes."""
-        attributes = super().state_attributes
-        attributes.update(gen_state_attrs(self.component, self.active_mode))
-        return attributes
 
     @property
     def fan_mode(self) -> Optional[str]:
@@ -165,10 +158,10 @@ class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
     def hvac_mode(self) -> str:
         """Return hvac operation ie. heat, cool mode."""
 
-        hvac_mode = self.mode_to_hvac(self.active_mode.current_mode)
+        hvac_mode = self.mode_to_hvac(self.active_mode.current)
 
         if hvac_mode is None:
-            if self.active_mode.current_mode in [
+            if self.active_mode.current in [
                 OperatingModes.QUICK_VETO,
                 OperatingModes.MANUAL,
             ]:
@@ -178,7 +171,7 @@ class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
                     hvac_mode = HVAC_MODE_COOL
             else:
                 _LOGGER.warning(
-                    "Unknown mode %s, will return None", self.active_mode.current_mode
+                    "Unknown mode %s, will return None", self.active_mode.current
                 )
         return hvac_mode
 
@@ -192,7 +185,7 @@ class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
         self.component = component
 
     def _is_heating(self):
-        return self.active_mode.target_temperature > self.component.current_temperature
+        return self.active_mode.target > self.component.temperature
 
     @abc.abstractmethod
     def mode_to_hvac(self, mode):
@@ -260,19 +253,28 @@ class RoomClimate(VaillantClimate):
         """Get active mode of the climate."""
         return self._system.get_active_mode_room(self.component)
 
-    def set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
-        self.hub.set_room_target_temperature(
-            self, self.component, float(kwargs.get(ATTR_TEMPERATURE))
+        await self.hub.set_room_target_temperature(
+            self, float(kwargs.get(ATTR_TEMPERATURE))
         )
 
     def set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
 
-    def set_hvac_mode(self, hvac_mode: str) -> None:
+    async def async_set_hvac_mode(self, hvac_mode: str) -> None:
         """Set new target hvac mode."""
         mode = self._HVAC_TO_MODE[hvac_mode]
-        self.hub.set_room_operating_mode(self, self.component, mode)
+        await self.hub.set_room_operating_mode(self, self.component, mode)
+
+    @property
+    def state_attributes(self) -> Dict[str, Any]:
+        """Return the optional state attributes."""
+        attributes = super().state_attributes
+        attributes.update(
+            gen_state_attrs(self.component, self.component, self.active_mode)
+        )
+        return attributes
 
 
 class ZoneClimate(VaillantClimate):
@@ -344,24 +346,33 @@ class ZoneClimate(VaillantClimate):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self.active_mode.target_temperature
+        return self.active_mode.target
 
     @property
     def active_mode(self) -> ActiveMode:
         """Get active mode of the climate."""
         return self._system.get_active_mode_zone(self.component)
 
-    def set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temp = kwargs.get(ATTR_TEMPERATURE)
 
-        if temp and temp != self.active_mode.target_temperature:
+        if temp and temp != self.active_mode.target:
             _LOGGER.debug("Setting target temp to %s", temp)
-            self.hub.set_zone_target_temperature(self, self.component, temp)
+            await self.hub.set_zone_target_temperature(self, temp)
         else:
             _LOGGER.debug("Nothing to do")
 
-    def set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
         mode = self._HVAC_TO_MODE[hvac_mode]
-        self.hub.set_zone_operating_mode(self, self.component, mode)
+        await self.hub.set_zone_operating_mode(self, mode)
+
+    @property
+    def state_attributes(self) -> Dict[str, Any]:
+        """Return the optional state attributes."""
+        attributes = super().state_attributes
+        attributes.update(
+            gen_state_attrs(self.component, self.component.heating, self.active_mode)
+        )
+        return attributes
