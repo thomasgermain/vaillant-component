@@ -4,8 +4,7 @@
 
 Ideas are welcome ! Don't hesitate to create issue to suggest something, it will be really appreciated.
 
-Please download the vaillant folder [here](https://minhaskamal.github.io/DownGit/#/home?url=https://github.com/thomasgermain/vaillant-component/vaillant)
-and put it inside your `custom_components` folder.
+Please download the `vaillant` folder and put it inside your `custom_components` folder.
 
 You can configure it through the UI using integration.
 You have to provided your username and password (same as multimatic app)
