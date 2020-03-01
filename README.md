@@ -9,6 +9,10 @@ Please download the `vaillant` folder and put it inside your `custom_components`
 You can configure it through the UI using integration.
 You have to provided your username and password (same as multimatic app)
 
+## Releases
+### [1.0.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.0.0)
+First release using config flow
+
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
