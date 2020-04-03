@@ -20,20 +20,16 @@ async def validate_input(hass: core.HomeAssistant, data):
     Data has the keys from DATA_SCHEMA with values provided by the user.
     """
 
-    # If your PyPI package is not built with async, pass your methods
-    # to the executor:
-    await hass.async_add_executor_job(
-        validate_authentication, data["username"], data["password"]
-    )
+    await validate_authentication(hass, data["username"], data["password"])
 
     # TODO Return info that you want to store in the config entry.
     return {"title": "Vaillant"}
 
 
-def validate_authentication(username, password):
+async def validate_authentication(hass, username, password):
     """Ensure provided credentials are working."""
-    hub: ApiHub = ApiHub(None, username, password)
-    if not hub.authenticate():
+    hub: ApiHub = ApiHub(hass, username, password)
+    if not await hub.authenticate():
         raise InvalidAuth
 
 

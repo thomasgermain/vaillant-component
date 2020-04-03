@@ -1,7 +1,12 @@
 """Api hub and integration data."""
+from datetime import timedelta
 import logging
 
+from pymultimatic.api import ApiError
+
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import Throttle
 
 from .const import (
@@ -20,36 +25,67 @@ class ApiHub:
     def __init__(self, hass, username, password):
         """Initialize hub."""
         from pymultimatic.systemmanager import SystemManager
+        from pymultimatic.model import System
 
-        self._manager = SystemManager(username, password, DEFAULT_SMART_PHONE_ID)
-        self.system = None
+        session = async_create_clientsession(hass)
+        self._manager = SystemManager(
+            username, password, session, DEFAULT_SMART_PHONE_ID
+        )
+        self.system: System = None
         self.update_system = Throttle(DEFAULT_SCAN_INTERVAL)(self._update_system)
         self._hass = hass
+        async_track_time_interval(hass, self._hvac_update, timedelta(minutes=10))
 
-    def authenticate(self):
+    async def authenticate(self):
         """Try to authenticate to the API."""
-        return self._manager.login(True)
+        return await self._manager.login(True)
 
-    def _update_system(self):
+    async def _hvac_update(self, trigger=None) -> None:
+        """Request is not on the classic update since it won't fetch data.
+
+        The request update will trigger something at vaillant API and it will
+        ask data to your system.
+        """
+        try:
+            _LOGGER.debug("Will request_hvac_update")
+            await self._manager.request_hvac_update()
+        except ApiError as err:
+            resp = await err.response.json()
+            _LOGGER.warning(
+                "Unable to fetch data from vaillant API, API says: %s, status: %s",
+                resp,
+                err.response.status,
+                exec_info=True,
+            )
+            if err.response.status == 409:
+                await self.authenticate()
+
+    async def _update_system(self):
         """Fetch vaillant system."""
         from pymultimatic.api import ApiError
 
         try:
-            self._manager.request_hvac_update()
-            self.system = self._manager.get_system()
+            self.system = await self._manager.get_system()
             _LOGGER.debug("update_system successfully fetched")
-        except ApiError:
-            _LOGGER.exception("Enable to fetch data from vaillant API")
+        except ApiError as err:
             # update_system can is called by all entities, if it fails for
             # one entity, it will certainly fail for others.
             # catching exception so the throttling is occurring
+            resp = await err.response.json()
+            _LOGGER.exception(
+                "Unable to fetch data from vaillant API, API says: %s, status: %s",
+                resp,
+                err.response.status,
+            )
+            if err.response.status == 409:
+                await self.authenticate()
 
-    def logout(self):
+    async def logout(self):
         """Logout from API."""
         from pymultimatic.api import ApiError
 
         try:
-            self._manager.logout()
+            await self._manager.logout()
         except ApiError:
             _LOGGER.warning("Cannot logout from vaillant API", exc_info=True)
             return False
@@ -68,15 +104,18 @@ class ApiHub:
                 if room.id == comp.id:
                     return room
         if isinstance(comp, HotWater):
-            if self.system.hot_water and self.system.hot_water.id == comp.id:
-                return self.system.hot_water
+            if self.system.dhw.hotwater and self.system.dhw.hotwater.id == comp.id:
+                return self.system.dhw.hotwater
         if isinstance(comp, Circulation):
-            if self.system.circulation and self.system.circulation.id == comp.id:
-                return self.system.circulation
+            if (
+                self.system.dhw.circulation
+                and self.system.dhw.circulation.id == comp.id
+            ):
+                return self.system.dhw.circulation
 
         return None
 
-    def set_hot_water_target_temperature(self, entity, hot_water, target_temp):
+    async def set_hot_water_target_temperature(self, entity, target_temp):
         """Set hot water target temperature.
 
         * If there is a quick mode that impact dhw running on or holiday mode,
@@ -88,18 +127,22 @@ class ApiHub:
         """
         from pymultimatic.model import OperatingModes
 
-        touch_system = self._remove_quick_mode_or_holiday(entity)
+        hotwater = entity.component
 
-        current_mode = self.system.get_active_mode_hot_water(hot_water).current_mode
+        touch_system = await self._remove_quick_mode_or_holiday(entity)
+
+        current_mode = self.system.get_active_mode_hot_water(hotwater).current
 
         if current_mode == OperatingModes.OFF or touch_system:
-            self._manager.set_hot_water_operating_mode(hot_water.id, OperatingModes.ON)
-        self._manager.set_hot_water_setpoint_temperature(hot_water.id, target_temp)
+            await self._manager.set_hot_water_operating_mode(
+                hotwater.id, OperatingModes.ON
+            )
+        await self._manager.set_hot_water_setpoint_temperature(hotwater.id, target_temp)
 
-        self.system.hot_water = hot_water
-        self._refresh(touch_system, entity)
+        self.system.hot_water = hotwater
+        await self._refresh(touch_system, entity)
 
-    def set_room_target_temperature(self, entity, room, target_temp):
+    async def set_room_target_temperature(self, entity, target_temp):
         """Set target temperature for a room.
 
         * If there is a quick mode that impact room running on or holiday mode,
@@ -111,25 +154,26 @@ class ApiHub:
         """
         from pymultimatic.model import QuickVeto, OperatingModes
 
-        touch_system = self._remove_quick_mode_or_holiday(entity)
+        touch_system = await self._remove_quick_mode_or_holiday(entity)
 
-        current_mode = self.system.get_active_mode_room(room).current_mode
+        room = entity.component
+        current_mode = self.system.get_active_mode_room(room).current
 
         if current_mode == OperatingModes.MANUAL:
-            self._manager.set_room_setpoint_temperature(room.id, target_temp)
+            await self._manager.set_room_setpoint_temperature(room.id, target_temp)
             room.target_temperature = target_temp
         else:
             if current_mode == OperatingModes.QUICK_VETO:
-                self._manager.remove_room_quick_veto(room.id)
+                await self._manager.remove_room_quick_veto(room.id)
 
             qveto = QuickVeto(DEFAULT_QUICK_VETO_DURATION, target_temp)
-            self._manager.set_room_quick_veto(room.id, qveto)
+            await self._manager.set_room_quick_veto(room.id, qveto)
             room.quick_veto = qveto
         self.system.set_room(room.id, room)
 
-        self._refresh(touch_system, entity)
+        await self._refresh(touch_system, entity)
 
-    def set_zone_target_temperature(self, entity, zone, target_temp):
+    async def set_zone_target_temperature(self, entity, target_temp):
         """Set target temperature for a zone.
 
         * If there is a quick mode related to zone running or holiday mode,
@@ -142,97 +186,99 @@ class ApiHub:
         """
         from pymultimatic.model import QuickVeto, OperatingModes
 
-        touch_system = self._remove_quick_mode_or_holiday(entity)
-
-        current_mode = self.system.get_active_mode_zone(zone).current_mode
+        touch_system = await self._remove_quick_mode_or_holiday(entity)
+        zone = entity.component
+        current_mode = self.system.get_active_mode_zone(zone).current
 
         if current_mode == OperatingModes.QUICK_VETO:
-            self._manager.remove_zone_quick_veto(zone.id)
+            await self._manager.remove_zone_quick_veto(zone.id)
 
         veto = QuickVeto(None, target_temp)
-        self._manager.set_zone_quick_veto(zone.id, veto)
+        await self._manager.set_zone_quick_veto(zone.id, veto)
         zone.quick_veto = veto
 
         self.system.set_zone(zone.id, zone)
-        self._refresh(touch_system, entity)
+        await self._refresh(touch_system, entity)
 
-    def set_hot_water_operating_mode(self, entity, hot_water, mode):
+    async def set_hot_water_operating_mode(self, entity, mode):
         """Set hot water operation mode.
 
         If there is a quick mode that impact hot warter running on or holiday
         mode, remove it.
         """
-        touch_system = self._remove_quick_mode_or_holiday(entity)
+        hotwater = entity.component
+        touch_system = await self._remove_quick_mode_or_holiday(entity)
 
-        self._manager.set_hot_water_operating_mode(hot_water.id, mode)
-        hot_water.operating_mode = mode
+        await self._manager.set_hot_water_operating_mode(hotwater.id, mode)
+        hotwater.operating_mode = mode
 
-        self.system.hot_water = hot_water
-        self._refresh(touch_system, entity)
+        self.system.dhw.hotwater = hotwater
+        await self._refresh(touch_system, entity)
 
-    def set_room_operating_mode(self, entity, room, mode):
+    async def set_room_operating_mode(self, entity, room, mode):
         """Set room operation mode.
 
         If there is a quick mode that impact room running on or holiday mode,
         remove it.
         """
-        touch_system = self._remove_quick_mode_or_holiday(entity)
+        touch_system = await self._remove_quick_mode_or_holiday(entity)
         if room.quick_veto is not None:
-            self._manager.remove_room_quick_veto(room.id)
+            await self._manager.remove_room_quick_veto(room.id)
             room.quick_veto = None
 
-        self._manager.set_room_operating_mode(room.id, mode)
+        await self._manager.set_room_operating_mode(room.id, mode)
         room.operating_mode = mode
 
         self.system.set_room(room.id, room)
-        self._refresh(touch_system, entity)
+        await self._refresh(touch_system, entity)
 
-    def set_zone_operating_mode(self, entity, zone, mode):
+    async def set_zone_operating_mode(self, entity, mode):
         """Set zone operation mode.
 
         If there is a quick mode that impact zone running on or holiday mode,
         remove it.
         """
-        touch_system = self._remove_quick_mode_or_holiday(entity)
+        touch_system = await self._remove_quick_mode_or_holiday(entity)
+        zone = entity.component
 
         if zone.quick_veto is not None:
-            self._manager.remove_zone_quick_veto(zone.id)
+            await self._manager.remove_zone_quick_veto(zone.id)
             zone.quick_veto = None
 
-        self._manager.set_zone_operating_mode(zone.id, mode)
-        zone.operating_mode = mode
+        await self._manager.set_zone_operating_mode(zone.id, mode)
+        zone.heating.operating_mode = mode
 
         self.system.set_zone(zone.id, zone)
-        self._refresh(touch_system, entity)
+        await self._refresh(touch_system, entity)
 
-    def remove_quick_mode(self, entity=None):
+    async def remove_quick_mode(self, entity=None):
         """Remove quick mode.
 
         If entity is not None, only remove if the quick mode applies to the
         given entity.
         """
-        if self._remove_quick_mode_no_refresh(entity):
-            self._refresh_entities()
+        if await self._remove_quick_mode_no_refresh(entity):
+            await self._refresh_entities()
 
-    def remove_holiday_mode(self):
+    async def remove_holiday_mode(self):
         """Remove holiday mode."""
-        if self._remove_holiday_mode_no_refresh():
-            self._refresh_entities()
+        if await self._remove_holiday_mode_no_refresh():
+            await self._refresh_entities()
 
-    def set_holiday_mode(self, start_date, end_date, temperature):
+    async def set_holiday_mode(self, start_date, end_date, temperature):
         """Set holiday mode."""
-        self._manager.set_holiday_mode(start_date, end_date, temperature)
-        self._refresh_entities()
+        await self._manager.set_holiday_mode(start_date, end_date, temperature)
+        await self._refresh_entities()
 
-    def set_quick_mode(self, mode):
-        """Set quick mode (remove previous one)."""
+    async def set_quick_mode(self, mode):
+        """Set quick mode (remove evious one)."""
         from pymultimatic.model import QuickModes
 
-        self._remove_quick_mode_no_refresh()
-        self._manager.set_quick_mode(QuickModes.get(mode))
-        self._refresh_entities()
+        await self._remove_quick_mode_no_refresh()
+        await self._manager.set_quick_mode(QuickModes.get(mode))
+        await self._refresh_entities()
 
-    def set_quick_veto(self, entity, temperature, duration=None):
+    async def set_quick_veto(self, entity, temperature, duration=None):
         """Set quick veto for the given entity."""
         from pymultimatic.model import QuickVeto, Zone
 
@@ -243,16 +289,16 @@ class ApiHub:
 
         if isinstance(comp, Zone):
             if comp.quick_veto:
-                self._manager.remove_zone_quick_veto(comp.id)
-            self._manager.set_zone_quick_veto(comp.id, qveto)
+                await self._manager.remove_zone_quick_veto(comp.id)
+            await self._manager.set_zone_quick_veto(comp.id, qveto)
         else:
             if comp.quick_veto:
-                self._manager.remove_room_quick_veto(comp.id)
-            self._manager.set_room_quick_veto(comp.id, qveto)
+                await self._manager.remove_room_quick_veto(comp.id)
+            await self._manager.set_room_quick_veto(comp.id, qveto)
         comp.quick_veto = qveto
-        self._refresh(False, entity)
+        await self._refresh(False, entity)
 
-    def remove_quick_veto(self, entity):
+    async def remove_quick_veto(self, entity):
         """Remove quick veto for the given entity."""
         from pymultimatic.model import Zone
 
@@ -260,11 +306,11 @@ class ApiHub:
 
         if comp and comp.quick_veto:
             if isinstance(comp, Zone):
-                self._manager.remove_zone_quick_veto(comp.id)
+                await self._manager.remove_zone_quick_veto(comp.id)
             else:
-                self._manager.remove_room_quick_veto(comp.id)
+                await self._manager.remove_room_quick_veto(comp.id)
             comp.quick_veto = None
-            self._refresh(False, entity)
+            await self._refresh(False, entity)
 
     def get_entity(self, entity_id):
         """Get entity owned by this component."""
@@ -273,57 +319,51 @@ class ApiHub:
                 return entity
         return None
 
-    def _remove_quick_mode_no_refresh(self, entity=None):
-        from pymultimatic.model import Zone, Room, HotWater
-
+    async def _remove_quick_mode_no_refresh(self, entity=None):
         removed = False
 
         if self.system.quick_mode is not None:
             qmode = self.system.quick_mode
 
             if entity:
-                if (
-                    (isinstance(entity.component, Zone) and qmode.for_zone)
-                    or (isinstance(entity.component, Room) and qmode.for_room)
-                    or (isinstance(entity.component, HotWater) and qmode.for_dhw)
-                ):
-                    self._hard_remove_quick_mode()
+                if qmode.is_for(entity.component):
+                    await self._hard_remove_quick_mode()
                     removed = True
             else:
-                self._hard_remove_quick_mode()
+                await self._hard_remove_quick_mode()
                 removed = True
         return removed
 
-    def _hard_remove_quick_mode(self):
-        self._manager.remove_quick_mode()
+    async def _hard_remove_quick_mode(self):
+        await self._manager.remove_quick_mode()
         self.system.quick_mode = None
 
-    def _remove_holiday_mode_no_refresh(self):
+    async def _remove_holiday_mode_no_refresh(self):
         from pymultimatic.model import HolidayMode
 
         removed = False
 
-        if self.system.holiday_mode is not None and self.system.holiday_mode.is_active:
+        if self.system.holiday is not None and self.system.holiday.is_applied:
             removed = True
-            self._manager.remove_holiday_mode()
-            self.system.holiday_mode = HolidayMode(False)
+            await self._manager.remove_holiday_mode()
+            self.system.holiday = HolidayMode(False)
         return removed
 
-    def _remove_quick_mode_or_holiday(self, entity):
-        return self._remove_holiday_mode_no_refresh() | self._remove_quick_mode_no_refresh(
+    async def _remove_quick_mode_or_holiday(self, entity):
+        return await self._remove_holiday_mode_no_refresh() | await self._remove_quick_mode_no_refresh(
             entity
         )
 
-    def _refresh_entities(self):
+    async def _refresh_entities(self):
         """Fetch vaillant data and force refresh of all listening entities."""
-        self.update_system(no_throttle=True)
+        await self.update_system(no_throttle=True)
         for entity in self._hass.data[DOMAIN].entities:
             if entity.listening:
                 entity.async_schedule_update_ha_state(True)
 
-    def _refresh(self, touch_system, entity):
+    async def _refresh(self, touch_system, entity):
         if touch_system:
-            self._refresh_entities()
+            await self._refresh_entities()
         else:
             entity.async_schedule_update_ha_state(True)
 

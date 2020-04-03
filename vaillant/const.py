@@ -35,5 +35,3 @@ ATTR_START_DATE = "start_date"
 ATTR_END_DATE = "end_date"
 ATTR_TEMPERATURE = "temperature"
 ATTR_DURATION = "duration"
-
-PRESSURE_BAR = "bar"

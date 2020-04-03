@@ -24,7 +24,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
     api: ApiHub = ApiHub(hass, username, password)
-    api.update_system()
+    await api.authenticate()
+    await api.update_system()
 
     hass.data[DOMAIN] = DomainData(api, entry)
 
@@ -40,7 +41,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         method = getattr(service_handler, method_name)
         hass.services.async_register(DOMAIN, vaillant_service, method, schema=schema)
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, lambda event: api.logout())
+    async def logout(param):
+        await api.logout()
+
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, logout)
 
     return True
 

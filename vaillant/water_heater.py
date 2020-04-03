@@ -1,7 +1,7 @@
 """Interfaces with Vaillant water heater."""
 import logging
 
-from pymultimatic.model import HotWater, OperatingModes, QuickModes, System
+from pymultimatic.model import HotWater, OperatingModes, QuickModes
 
 from homeassistant.components.water_heater import (
     DOMAIN,
@@ -37,8 +37,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
     hub = hass.data[VAILLANT].api
 
-    if hub.system:
-        entity = VaillantWaterHeater(hub.system)
+    if hub.system.dhw.hotwater:
+        entity = VaillantWaterHeater(hub.system.dhw.hotwater)
         entities.append(entity)
 
     _LOGGER.info("Added water heater? %s", len(entities) > 0)
@@ -49,13 +49,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class VaillantWaterHeater(VaillantEntity, WaterHeaterDevice):
     """Represent the vaillant water heater."""
 
-    def __init__(self, system: System):
+    def __init__(self, hotwater: HotWater):
         """Initialize entity."""
-        super().__init__(DOMAIN, None, system.hot_water.id, system.hot_water.name)
-        self._system = None
+        super().__init__(DOMAIN, None, hotwater.id, hotwater.name)
+        self._hotwater = hotwater
         self._active_mode = None
         self._operations = {mode.name: mode for mode in HotWater.MODES}
-        self._refresh(system)
 
     @property
     def listening(self):
@@ -65,7 +64,7 @@ class VaillantWaterHeater(VaillantEntity, WaterHeaterDevice):
     @property
     def component(self):
         """Return vaillant component."""
-        return self._system.hot_water
+        return self._hotwater
 
     @property
     def supported_features(self):
@@ -92,14 +91,14 @@ class VaillantWaterHeater(VaillantEntity, WaterHeaterDevice):
         is off, but it means the user will be able to change the target
          temperature only when the heater is ON (which seems odd to me)
         """
-        if self._active_mode.current_mode != QuickModes.HOLIDAY:
+        if self._active_mode.current != QuickModes.HOLIDAY:
             return SUPPORTED_FLAGS
         return 0
 
     @property
     def available(self):
         """Return True if entity is available."""
-        return self._system.hot_water is not None
+        return self._hotwater is not None
 
     @property
     def temperature_unit(self):
@@ -113,22 +112,20 @@ class VaillantWaterHeater(VaillantEntity, WaterHeaterDevice):
         Adding current temperature
         """
         attrs = super().state_attributes
-        attrs.update(gen_state_attrs(self.component, self._active_mode))
+        attrs.update(gen_state_attrs(self.component, self.component, self._active_mode))
         return attrs
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        _LOGGER.debug("target temperature is %s", self._active_mode.target_temperature)
-        return self._active_mode.target_temperature
+        _LOGGER.debug("target temperature is %s", self._active_mode.target)
+        return self._active_mode.target
 
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        _LOGGER.debug(
-            "current temperature is %s", self._system.hot_water.current_temperature
-        )
-        return self._system.hot_water.current_temperature
+        _LOGGER.debug("current temperature is %s", self._hotwater.temperature)
+        return self._hotwater.temperature
 
     @property
     def min_temp(self):
@@ -143,57 +140,46 @@ class VaillantWaterHeater(VaillantEntity, WaterHeaterDevice):
     @property
     def current_operation(self):
         """Return current operation ie. eco, electric, performance, ..."""
-        _LOGGER.debug("current_operation is %s", self._active_mode.current_mode)
-        return self._active_mode.current_mode.name
+        _LOGGER.debug("current_operation is %s", self._active_mode.current)
+        return self._active_mode.current.name
 
     @property
     def operation_list(self):
         """Return current operation ie. eco, electric, performance, ..."""
-        if self._active_mode.current_mode != QuickModes.HOLIDAY:
+        if self._active_mode.current != QuickModes.HOLIDAY:
             return list(self._operations.keys())
         return []
 
     @property
     def is_away_mode_on(self):
         """Return true if away mode is on."""
-        return self._active_mode.current_mode in AWAY_MODES
+        return self._active_mode.current in AWAY_MODES
 
-    def set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         target_temp = float(kwargs.get(ATTR_TEMPERATURE))
         _LOGGER.debug("Trying to set target temp to %s", target_temp)
         # HUB will call sync update
-        self.hub.set_hot_water_target_temperature(
-            self, self._system.hot_water, target_temp
-        )
+        await self.hub.set_hot_water_target_temperature(self, target_temp)
 
-    def set_operation_mode(self, operation_mode):
+    async def async_set_operation_mode(self, operation_mode):
         """Set new target operation mode."""
         _LOGGER.debug("Will set new operation_mode %s", operation_mode)
-        # HUB will call sync update
         if operation_mode in self._operations.keys():
             mode = self._operations[operation_mode]
-            self.hub.set_hot_water_operating_mode(self, self._system.hot_water, mode)
+            await self.hub.set_hot_water_operating_mode(self, mode)
         else:
             _LOGGER.debug("Operation mode is unknown")
 
-    def turn_away_mode_on(self):
+    async def async_turn_away_mode_on(self):
         """Turn away mode on."""
-        self.hub.set_hot_water_operating_mode(
-            self, self._system.hot_water, OperatingModes.OFF
-        )
+        await self.hub.set_hot_water_operating_mode(self, OperatingModes.OFF)
 
-    def turn_away_mode_off(self):
+    async def async_turn_away_mode_off(self):
         """Turn away mode off."""
-        self.hub.set_hot_water_operating_mode(
-            self, self._system.hot_water, OperatingModes.AUTO
-        )
+        await self.hub.set_hot_water_operating_mode(self, OperatingModes.AUTO)
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        self._refresh(self.hub.system)
-
-    def _refresh(self, system):
-        """Refresh the entity."""
-        self._system = system
-        self._active_mode = self._system.get_active_mode_hot_water()
+        self._hotwater = self.hub.system.dhw.hotwater
+        self._active_mode = self.hub.system.get_active_mode_hot_water()

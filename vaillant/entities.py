@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import logging
 from typing import Optional
 
-from pymultimatic.model import BoilerStatus, Device, SystemInfo, SystemStatus
+from pymultimatic.model import BoilerStatus, Device, SystemInfo
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.entity import Entity
@@ -45,7 +45,7 @@ class VaillantEntity(Entity, ABC):
         _LOGGER.debug("Time to update %s", self.entity_id)
         if not self.hub:
             self.hub = self.hass.data[DOMAIN].api
-        self.hub.update_system()
+        await self.hub.update_system()
 
         await self.vaillant_update()
 
@@ -135,10 +135,9 @@ class VaillantRoomDevice(Entity):
 class VaillantBoxDevice(Entity):
     """Vaillant gateway device (ex: VR920)."""
 
-    def __init__(self, info: SystemInfo, status: SystemStatus):
+    def __init__(self, info: SystemInfo):
         """Init."""
         self.system_info = info
-        self.system_status = status
 
     @property
     def device_info(self):
@@ -157,6 +156,6 @@ class VaillantBoxDevice(Entity):
         """Return the state attributes."""
         return {
             "serial_number": self.system_info.serial_number,
-            "connected": self.system_status.is_online,
-            "up_to_date": self.system_status.is_up_to_date,
+            "connected": self.system_info.is_online,
+            "up_to_date": self.system_info.is_up_to_date,
         }
