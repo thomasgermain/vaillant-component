@@ -22,6 +22,8 @@ First release using config flow
 - Adding a way to specify serial number in case you have multiple
 - some error log improvement/fix
 - adding some none check
+### [1.2.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.1)
+- warning log fix
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
