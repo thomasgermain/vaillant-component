@@ -12,7 +12,8 @@
             "user": {
                 "data": {
                     "password": "Mot de passe",
-                    "username": "Nom d'utilisateur"
+                    "username": "Nom d'utilisateur",
+                    "serial_number": "Numéro de série"
                 },
                 "title": "Remplissez vos informations de connexion (les mêmes que l'application multiMATIC)"
             }

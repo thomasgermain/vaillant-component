@@ -31,9 +31,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
         if hub.system.outdoor_temperature:
             sensors.append(OutdoorTemperatureSensor(hub.system.outdoor_temperature))
 
-    if hub.system.reports:
-        for report in hub.system.reports:
-            sensors.append(ReportSensor(report))
+    for report in hub.system.reports:
+        sensors.append(ReportSensor(report))
 
     _LOGGER.info("Adding %s sensor entities", len(sensors))
 
@@ -81,7 +80,7 @@ class ReportSensor(VaillantEntity):
         """Init entity."""
         device_class = UNIT_TO_DEVICE_CLASS.get(report.unit, None)
         if not device_class:
-            _LOGGER.warning("No device class for {}", report.unit)
+            _LOGGER.warning("No device class for %s", report.unit)
         VaillantEntity.__init__(
             self, DOMAIN, device_class, report.id, report.name, False
         )

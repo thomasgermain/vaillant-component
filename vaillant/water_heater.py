@@ -37,7 +37,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
     hub = hass.data[VAILLANT].api
 
-    if hub.system and hub.system.dhw and hub.system.dhw.hotwater:
+    if hub.system.dhw.hotwater:
         entity = VaillantWaterHeater(hub.system.dhw.hotwater)
         entities.append(entity)
 

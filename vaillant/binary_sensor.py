@@ -53,15 +53,14 @@ async def async_setup_entry(hass, entry, async_add_entities):
             sensors.append(BoxOnline(hub.system.info))
             sensors.append(BoxUpdate(hub.system.info))
 
-        if hub.system.rooms:
-            for room in hub.system.rooms:
-                sensors.append(RoomWindow(room))
-                for device in room.devices:
-                    if device.device_type == "VALVE":
-                        sensors.append(RoomDeviceChildLock(device, room))
+        for room in hub.system.rooms:
+            sensors.append(RoomWindow(room))
+            for device in room.devices:
+                if device.device_type == "VALVE":
+                    sensors.append(RoomDeviceChildLock(device, room))
 
-                    sensors.append(RoomDeviceBattery(device, room))
-                    sensors.append(RoomDeviceConnectivity(device, room))
+                sensors.append(RoomDeviceBattery(device, room))
+                sensors.append(RoomDeviceConnectivity(device, room))
 
         entity = HolidayModeSensor(hub.system.holiday)
         sensors.append(entity)

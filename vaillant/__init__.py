@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, PLATFORMS
+from .const import CONF_SERIAL_NUMBER, DOMAIN, PLATFORMS
 from .hub import ApiHub, DomainData
 from .service import SERVICES, VaillantServiceHandler
 
@@ -23,7 +23,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
-    api: ApiHub = ApiHub(hass, username, password)
+    serial = entry.data.get(CONF_SERIAL_NUMBER)
+    api: ApiHub = ApiHub(hass, username, password, serial)
     await api.authenticate()
     await api.update_system()
 

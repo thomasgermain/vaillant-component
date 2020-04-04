@@ -22,14 +22,14 @@ _LOGGER = logging.getLogger(__name__)
 class ApiHub:
     """Vaillant entry point for home-assistant."""
 
-    def __init__(self, hass, username, password):
+    def __init__(self, hass, username, password, serial):
         """Initialize hub."""
         from pymultimatic.systemmanager import SystemManager
         from pymultimatic.model import System
 
         session = async_create_clientsession(hass)
         self._manager = SystemManager(
-            username, password, session, DEFAULT_SMART_PHONE_ID
+            username, password, session, DEFAULT_SMART_PHONE_ID, serial
         )
         self.system: System = None
         self.update_system = Throttle(DEFAULT_SCAN_INTERVAL)(self._update_system)
@@ -62,7 +62,6 @@ class ApiHub:
 
     async def _update_system(self):
         """Fetch vaillant system."""
-        from pymultimatic.api import ApiError
 
         try:
             self.system = await self._manager.get_system()
@@ -82,7 +81,6 @@ class ApiHub:
 
     async def logout(self):
         """Logout from API."""
-        from pymultimatic.api import ApiError
 
         try:
             await self._manager.logout()
