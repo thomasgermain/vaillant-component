@@ -55,7 +55,7 @@ class ApiHub:
                 "Unable to fetch data from vaillant API, API says: %s, status: %s",
                 resp,
                 err.response.status,
-                exec_info=True,
+                exc_info=True,
             )
             if err.response.status == 409:
                 await self.authenticate()
