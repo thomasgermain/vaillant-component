@@ -18,7 +18,10 @@ First release using config flow
 - Removed boiler temperature and boiler water pressure in favor of `report` entity (breaking change)
 - Better error handling
 - Automatic re-authentication in case of error
-
+### [1.2.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.0)
+- Adding a way to specify serial number in case you have multiple
+- some error log improvement/fix
+- adding some none check
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`

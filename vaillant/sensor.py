@@ -80,7 +80,7 @@ class ReportSensor(VaillantEntity):
         """Init entity."""
         device_class = UNIT_TO_DEVICE_CLASS.get(report.unit, None)
         if not device_class:
-            _LOGGER.warning("No device class for {}", report.unit)
+            _LOGGER.warning("No device class for %s", report.unit)
         VaillantEntity.__init__(
             self, DOMAIN, device_class, report.id, report.name, False
         )

@@ -5,7 +5,8 @@
       "user": {
         "data": {
           "password": "Hasło",
-          "username": "Nazwa użytkownika"
+          "username": "Nazwa użytkownika",
+          "serial_number": "Serial number"
         },
         "title": "Informacje o połączeniu (takie same jak w aplikacji multiMATIC)"
       }
