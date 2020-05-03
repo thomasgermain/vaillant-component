@@ -38,7 +38,11 @@ class ApiHub:
 
     async def authenticate(self):
         """Try to authenticate to the API."""
-        return await self._manager.login(True)
+        try:
+            return await self._manager.login(True)
+        except ApiError as err:
+            await self._handle_api_error(err)
+            return False
 
     async def _hvac_update(self, trigger=None) -> None:
         """Request is not on the classic update since it won't fetch data.
@@ -50,15 +54,8 @@ class ApiHub:
             _LOGGER.debug("Will request_hvac_update")
             await self._manager.request_hvac_update()
         except ApiError as err:
-            resp = await err.response.json()
-            _LOGGER.warning(
-                "Unable to fetch data from vaillant API, API says: %s, status: %s",
-                resp,
-                err.response.status,
-                exc_info=True,
-            )
-            if err.response.status == 409:
-                await self.authenticate()
+            await self._handle_api_error(err)
+            await self.authenticate()
 
     async def _update_system(self):
         """Fetch vaillant system."""
@@ -70,14 +67,8 @@ class ApiHub:
             # update_system can is called by all entities, if it fails for
             # one entity, it will certainly fail for others.
             # catching exception so the throttling is occurring
-            resp = await err.response.json()
-            _LOGGER.exception(
-                "Unable to fetch data from vaillant API, API says: %s, status: %s",
-                resp,
-                err.response.status,
-            )
-            if err.response.status == 409:
-                await self.authenticate()
+            await self._handle_api_error(err)
+            await self.authenticate()
 
     async def logout(self):
         """Logout from API."""
@@ -88,6 +79,14 @@ class ApiHub:
             _LOGGER.warning("Cannot logout from vaillant API", exc_info=True)
             return False
         return True
+
+    async def _handle_api_error(self, api_err):
+        resp = await api_err.response.json()
+        _LOGGER.exception(
+            "Unable to fetch data from vaillant, API says: %s, status: %s",
+            resp,
+            api_err.response.status,
+        )
 
     def find_component(self, comp):
         """Find a component in the system with the given id, no IO is done."""

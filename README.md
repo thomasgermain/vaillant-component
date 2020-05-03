@@ -24,6 +24,9 @@ First release using config flow
 - adding some none check
 ### [1.2.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.1)
 - warning log fix
+### [1.2.2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.2)
+- Better error handling
+- Component does a reconnection every time an error occurs
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
