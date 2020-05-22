@@ -19,7 +19,7 @@ set_holiday_mode:
       example: "2019-11-25"
     end_date:
       description: End date of the holiday mode, YYYY-MM-DD format (required)
-      example: "2019-11-25"
+      example: "2019-11-26"
     temperature:
       description: temperature to maintin while holiday mode is active (required)
       example: 15
@@ -35,10 +35,11 @@ set_quick_veto:
       example: 25
     duration:
       description: Duration (in minutes) of the quick veto. Min 30min, max 1440 (24 hours). If not specified, the default (configured) duration is applied.
-      example: "2019-11-25"
+      example: "60"
 
 remove_quick_veto:
-    description: Remove a quick veto for a climate entity
+  description: Remove a quick veto for a climate entity
+  fields:
     entity_id:
       description: Entity id from where to remove quick veto
       example: climate.vaillant_bathroom

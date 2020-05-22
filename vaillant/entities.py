@@ -57,7 +57,6 @@ class VaillantEntity(Entity, ABC):
     @abstractmethod
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        pass
 
     @property
     def listening(self):
@@ -76,7 +75,7 @@ class VaillantEntity(Entity, ABC):
         self.hass.data[DOMAIN].entities.remove(self)
 
 
-class VaillantBoilerDevice(Entity):
+class VaillantBoilerEntity(Entity):
     """Base class for boiler device."""
 
     def __init__(self, boiler_status: BoilerStatus) -> None:
@@ -105,7 +104,7 @@ class VaillantBoilerDevice(Entity):
         return None
 
 
-class VaillantRoomDevice(Entity):
+class VaillantRoomEntity(Entity):
     """Base class for ambisense device."""
 
     def __init__(self, device: Device) -> None:
@@ -132,7 +131,7 @@ class VaillantRoomDevice(Entity):
         }
 
 
-class VaillantBoxDevice(Entity):
+class VaillantBoxEntity(Entity):
     """Vaillant gateway device (ex: VR920)."""
 
     def __init__(self, info: SystemInfo):

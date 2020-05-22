@@ -3,6 +3,9 @@ from datetime import timedelta
 import logging
 
 from pymultimatic.api import ApiError
+from pymultimatic.model import System, Zone, Room, HotWater, Circulation, \
+    OperatingModes, QuickVeto, QuickModes, HolidayMode
+
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
@@ -24,8 +27,8 @@ class ApiHub:
 
     def __init__(self, hass, username, password, serial):
         """Initialize hub."""
+        # pylint: disable=import-outside-toplevel
         from pymultimatic.systemmanager import SystemManager
-        from pymultimatic.model import System
 
         session = async_create_clientsession(hass)
         self._manager = SystemManager(
@@ -38,11 +41,7 @@ class ApiHub:
 
     async def authenticate(self):
         """Try to authenticate to the API."""
-        try:
-            return await self._manager.login(True)
-        except ApiError as err:
-            await self._handle_api_error(err)
-            return False
+        return await self._manager.login(True)
 
     async def _hvac_update(self, trigger=None) -> None:
         """Request is not on the classic update since it won't fetch data.
@@ -54,8 +53,15 @@ class ApiHub:
             _LOGGER.debug("Will request_hvac_update")
             await self._manager.request_hvac_update()
         except ApiError as err:
-            await self._handle_api_error(err)
-            await self.authenticate()
+            resp = await err.response.json()
+            _LOGGER.warning(
+                "Unable to fetch data from vaillant API, API says: %s, status: %s",
+                resp,
+                err.response.status,
+                exec_info=True,
+            )
+            if err.response.status == 409:
+                await self.authenticate()
 
     async def _update_system(self):
         """Fetch vaillant system."""
@@ -67,8 +73,14 @@ class ApiHub:
             # update_system can is called by all entities, if it fails for
             # one entity, it will certainly fail for others.
             # catching exception so the throttling is occurring
-            await self._handle_api_error(err)
-            await self.authenticate()
+            resp = await err.response.json()
+            _LOGGER.exception(
+                "Unable to fetch data from vaillant API, API says: %s, status: %s",
+                resp,
+                err.response.status,
+            )
+            if err.response.status == 409:
+                await self.authenticate()
 
     async def logout(self):
         """Logout from API."""
@@ -80,17 +92,8 @@ class ApiHub:
             return False
         return True
 
-    async def _handle_api_error(self, api_err):
-        resp = await api_err.response.json()
-        _LOGGER.exception(
-            "Unable to fetch data from vaillant, API says: %s, status: %s",
-            resp,
-            api_err.response.status,
-        )
-
     def find_component(self, comp):
         """Find a component in the system with the given id, no IO is done."""
-        from pymultimatic.model import Zone, Room, HotWater, Circulation
 
         if isinstance(comp, Zone):
             for zone in self.system.zones:
@@ -122,7 +125,6 @@ class ApiHub:
 
         * If dhw is OFF, change to ON and set target temperature
         """
-        from pymultimatic.model import OperatingModes
 
         hotwater = entity.component
 
@@ -149,7 +151,6 @@ class ApiHub:
 
         * if the room is not in MANUAL mode, create à quick veto.
         """
-        from pymultimatic.model import QuickVeto, OperatingModes
 
         touch_system = await self._remove_quick_mode_or_holiday(entity)
 
@@ -181,7 +182,6 @@ class ApiHub:
 
         * If any other mode, create a quick veto
         """
-        from pymultimatic.model import QuickVeto, OperatingModes
 
         touch_system = await self._remove_quick_mode_or_holiday(entity)
         zone = entity.component
@@ -269,16 +269,12 @@ class ApiHub:
 
     async def set_quick_mode(self, mode):
         """Set quick mode (remove evious one)."""
-        from pymultimatic.model import QuickModes
-
         await self._remove_quick_mode_no_refresh()
         await self._manager.set_quick_mode(QuickModes.get(mode))
         await self._refresh_entities()
 
     async def set_quick_veto(self, entity, temperature, duration=None):
         """Set quick veto for the given entity."""
-        from pymultimatic.model import QuickVeto, Zone
-
         comp = self.find_component(entity.component)
 
         q_duration = duration if duration else DEFAULT_QUICK_VETO_DURATION
@@ -297,8 +293,6 @@ class ApiHub:
 
     async def remove_quick_veto(self, entity):
         """Remove quick veto for the given entity."""
-        from pymultimatic.model import Zone
-
         comp = self.find_component(entity.component)
 
         if comp and comp.quick_veto:
@@ -336,8 +330,6 @@ class ApiHub:
         self.system.quick_mode = None
 
     async def _remove_holiday_mode_no_refresh(self):
-        from pymultimatic.model import HolidayMode
-
         removed = False
 
         if self.system.holiday is not None and self.system.holiday.is_applied:

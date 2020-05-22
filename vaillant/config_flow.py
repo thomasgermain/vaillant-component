@@ -1,6 +1,7 @@
 """Config flow for vaillant integration."""
 import logging
 
+from pymultimatic.api import ApiError
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
@@ -36,8 +37,17 @@ async def validate_input(hass: core.HomeAssistant, data):
 async def validate_authentication(hass, username, password, serial):
     """Ensure provided credentials are working."""
     hub: ApiHub = ApiHub(hass, username, password, serial)
-    if not await hub.authenticate():
-        raise InvalidAuth
+    try:
+        if not await hub.authenticate():
+            raise InvalidAuth
+    except ApiError as err:
+        resp = await err.response.json()
+        _LOGGER.exception(
+            "Unable to authenticate, API says: %s, status: %s",
+            resp,
+            err.response.status,
+        )
+        raise InvalidAuth from err
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

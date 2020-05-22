@@ -8,7 +8,7 @@ from homeassistant.components.water_heater import (
     SUPPORT_AWAY_MODE,
     SUPPORT_OPERATION_MODE,
     SUPPORT_TARGET_TEMPERATURE,
-    WaterHeaterDevice,
+    WaterHeaterEntity,
 )
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 
@@ -37,7 +37,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
     hub = hass.data[VAILLANT].api
 
-    if hub.system.dhw.hotwater:
+    if hub.system and hub.system.dhw and hub.system.dhw.hotwater:
         entity = VaillantWaterHeater(hub.system.dhw.hotwater)
         entities.append(entity)
 
@@ -46,7 +46,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     return True
 
 
-class VaillantWaterHeater(VaillantEntity, WaterHeaterDevice):
+class VaillantWaterHeater(VaillantEntity, WaterHeaterEntity):
     """Represent the vaillant water heater."""
 
     def __init__(self, hotwater: HotWater):
