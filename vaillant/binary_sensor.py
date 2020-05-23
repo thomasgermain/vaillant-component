@@ -9,12 +9,12 @@ from pymultimatic.model import (
     Device,
     Error,
     HolidayMode,
-    QuickMode,
-    Room,
-    SystemInfo,
     OperatingModes,
+    QuickMode,
+    QuickModes,
+    Room,
     SettingModes,
-    QuickModes
+    SystemInfo,
 )
 
 from homeassistant.components.binary_sensor import (

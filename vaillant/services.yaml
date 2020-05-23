@@ -43,3 +43,6 @@ remove_quick_veto:
     entity_id:
       description: Entity id from where to remove quick veto
       example: climate.vaillant_bathroom
+
+request_hvac_update:
+  description: Ask vaillant API to get data from your installation.

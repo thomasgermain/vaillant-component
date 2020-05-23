@@ -9,6 +9,11 @@ Please download the `vaillant` folder and put it inside your `custom_components`
 You can configure it through the UI using integration.
 You have to provided your username and password (same as multimatic app)
 
+**It is strongly recommended to use a dedicated user for HA**, for 2 reasons:
+- As usual for security reason, if your HA is compromised somehow, you know which user to block
+- I cannot strongly confirm it, but it seems vaillant API only accept the same user to be connected at the same time
+
+
 ## Releases
 ### [1.0.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.0.0)
 First release using config flow
@@ -31,6 +36,19 @@ First release using config flow
 - Adapt to HA 0.110 deprecation/warning
 - Add some None-check in case of error when component is starting
 - Fix issue with `set_holiday_mode` (ValueError: unconverted data remains: T00:00:00.000Z)
+### [1.3.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.0)
+- `request hvac update` is not done by the component automatically. Instead, there is a new service `request_hvac_update`. 
+If you have any issue with refresh time of the data, you can use an automation to call the service. **I recommend to do it very 1 hour**. If you really hove data refresh issue, you can do down until every 30min. Doing it more often will likely end up in an error at vaillant API. 
+You can use something like this as automation:
+```yaml
+- id: "Refresh vaillant data"
+  alias: "Refresh vaillant data"
+  trigger:
+    - platform: time_pattern
+      hours: "/1"
+  action:
+    - service: vaillant.request_hvac_update
+```
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
@@ -76,6 +94,7 @@ For the `binary_sensor.vaillant_holiday`, when on, you have the start date, end 
 - `vaillant.remove_quick_mode` don't tell me you don't get it 
 - `vaillant.set_quick_veto` to set a quick veto for a climate entity
 - `vaillant.remove_quick_veto` to remove a quick veto for a climate entity
+- `vaillant.request_hvac_update` to tell vaillant API to fetch data from your installation and made them avaible in the API
 
 This will allow you to create some buttons in UI to activate/deactivate quick mode or holiday mode with a single click
 

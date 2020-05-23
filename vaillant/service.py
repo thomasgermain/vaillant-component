@@ -4,6 +4,7 @@ import logging
 import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.util.dt import parse_date
 
 from .const import (
     ATTR_DURATION,
@@ -12,7 +13,6 @@ from .const import (
     ATTR_START_DATE,
     ATTR_TEMPERATURE,
 )
-from homeassistant.util.dt import parse_date
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ SERVICE_SET_QUICK_MODE = "set_quick_mode"
 SERVICE_SET_HOLIDAY_MODE = "set_holiday_mode"
 SERVICE_SET_QUICK_VETO = "set_quick_veto"
 SERVICE_REMOVE_QUICK_VETO = "remove_quick_veto"
+SERVICE_REQUEST_HVAC_UPDATE = "request_hvac_update"
 
 SERVICE_REMOVE_QUICK_MODE_SCHEMA = vol.Schema({})
 SERVICE_REMOVE_HOLIDAY_MODE_SCHEMA = vol.Schema({})
@@ -60,6 +61,7 @@ SERVICE_SET_QUICK_VETO_SCHEMA = vol.Schema(
         ),
     }
 )
+SERVICE_REQUEST_HVAC_UPDATE_SCHEMA = vol.Schema({})
 
 SERVICES = {
     SERVICE_REMOVE_QUICK_MODE: {
@@ -86,6 +88,10 @@ SERVICES = {
         "method": SERVICE_SET_QUICK_VETO,
         "schema": SERVICE_SET_QUICK_VETO_SCHEMA,
     },
+    SERVICE_REQUEST_HVAC_UPDATE: {
+        "method": SERVICE_REQUEST_HVAC_UPDATE,
+        "schema": SERVICE_REQUEST_HVAC_UPDATE_SCHEMA,
+    },
 }
 
 
@@ -106,10 +112,10 @@ class VaillantServiceHandler:
         start_str = call.data.get(ATTR_START_DATE, None)
         end_str = call.data.get(ATTR_END_DATE, None)
         temp = call.data.get(ATTR_TEMPERATURE)
-        start = parse_date(start_str.split('T')[0])
-        end = parse_date(end_str.split('T')[0])
+        start = parse_date(start_str.split("T")[0])
+        end = parse_date(end_str.split("T")[0])
         if end is None or start is None:
-            raise ValueError("dates are incorrect {} {}".find(start_str, end_str))
+            raise ValueError(f"dates are incorrect {start_str} {end_str}")
         await self._hub.set_holiday_mode(start, end, temp)
 
     async def remove_holiday_mode(self, call):
@@ -143,3 +149,7 @@ class VaillantServiceHandler:
             await self._hub.remove_quick_veto(entity)
         else:
             _LOGGER.debug("Not entity found for id %s", entity_id)
+
+    async def request_hvac_update(self, call):
+        """Ask vaillant API to get data from your installation."""
+        await self._hub.request_hvac_update()

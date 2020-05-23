@@ -1,15 +1,21 @@
 """Api hub and integration data."""
-from datetime import timedelta
 import logging
 
 from pymultimatic.api import ApiError
-from pymultimatic.model import System, Zone, Room, HotWater, Circulation, \
-    OperatingModes, QuickVeto, QuickModes, HolidayMode
-
+from pymultimatic.model import (
+    Circulation,
+    HolidayMode,
+    HotWater,
+    OperatingModes,
+    QuickModes,
+    QuickVeto,
+    Room,
+    System,
+    Zone,
+)
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
-from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import Throttle
 
 from .const import (
@@ -37,13 +43,16 @@ class ApiHub:
         self.system: System = None
         self.update_system = Throttle(DEFAULT_SCAN_INTERVAL)(self._update_system)
         self._hass = hass
-        async_track_time_interval(hass, self._hvac_update, timedelta(minutes=10))
 
     async def authenticate(self):
         """Try to authenticate to the API."""
-        return await self._manager.login(True)
+        try:
+            return await self._manager.login(True)
+        except ApiError as err:
+            await self._handle_api_error(err)
+            return False
 
-    async def _hvac_update(self, trigger=None) -> None:
+    async def request_hvac_update(self):
         """Request is not on the classic update since it won't fetch data.
 
         The request update will trigger something at vaillant API and it will
@@ -53,14 +62,10 @@ class ApiHub:
             _LOGGER.debug("Will request_hvac_update")
             await self._manager.request_hvac_update()
         except ApiError as err:
-            resp = await err.response.json()
-            _LOGGER.warning(
-                "Unable to fetch data from vaillant API, API says: %s, status: %s",
-                resp,
-                err.response.status,
-                exec_info=True,
-            )
             if err.response.status == 409:
+                _LOGGER.warning("request_hvac_update is done too often")
+            else:
+                await self._handle_api_error(err)
                 await self.authenticate()
 
     async def _update_system(self):
@@ -70,17 +75,11 @@ class ApiHub:
             self.system = await self._manager.get_system()
             _LOGGER.debug("update_system successfully fetched")
         except ApiError as err:
-            # update_system can is called by all entities, if it fails for
+            # update_system is called by all entities, if it fails for
             # one entity, it will certainly fail for others.
             # catching exception so the throttling is occurring
-            resp = await err.response.json()
-            _LOGGER.exception(
-                "Unable to fetch data from vaillant API, API says: %s, status: %s",
-                resp,
-                err.response.status,
-            )
-            if err.response.status == 409:
-                await self.authenticate()
+            await self._handle_api_error(err)
+            await self.authenticate()
 
     async def logout(self):
         """Logout from API."""
@@ -91,6 +90,14 @@ class ApiHub:
             _LOGGER.warning("Cannot logout from vaillant API", exc_info=True)
             return False
         return True
+
+    async def _handle_api_error(self, api_err):
+        resp = await api_err.response.json()
+        _LOGGER.exception(
+            "Unable to fetch data from vaillant, API says: %s, status: %s",
+            resp,
+            api_err.response.status,
+        )
 
     def find_component(self, comp):
         """Find a component in the system with the given id, no IO is done."""
