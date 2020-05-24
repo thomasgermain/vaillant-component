@@ -15,7 +15,7 @@ from pymultimatic.model import (
     Zone,
 )
 
-from homeassistant.components.climate import ClimateDevice
+from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import (
     DOMAIN,
     HVAC_MODE_AUTO,
@@ -57,7 +57,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     return True
 
 
-class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
+class VaillantClimate(VaillantEntity, ClimateEntity, abc.ABC):
     """Base class for climate."""
 
     def __init__(self, system: System, comp_name, comp_id, component: Component):
@@ -71,7 +71,6 @@ class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
     @abc.abstractmethod
     def active_mode(self) -> ActiveMode:
         """Get active mode of the climate."""
-        pass
 
     @property
     def listening(self):
@@ -126,23 +125,18 @@ class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
 
     def set_humidity(self, humidity: int) -> None:
         """Set new target humidity."""
-        pass
 
     def set_fan_mode(self, fan_mode: str) -> None:
         """Set new target fan mode."""
-        pass
 
     def set_swing_mode(self, swing_mode: str) -> None:
         """Set new target swing operation."""
-        pass
 
     def turn_aux_heat_on(self) -> None:
         """Turn auxiliary heater on."""
-        pass
 
     def turn_aux_heat_off(self) -> None:
         """Turn auxiliary heater off."""
-        pass
 
     @property
     def target_temperature_high(self) -> Optional[float]:
@@ -190,7 +184,6 @@ class VaillantClimate(VaillantEntity, ClimateDevice, abc.ABC):
     @abc.abstractmethod
     def mode_to_hvac(self, mode):
         """Get the hvac mode based on vaillant mode."""
-        pass
 
 
 class RoomClimate(VaillantClimate):

@@ -1,5 +1,4 @@
 """Vaillant service."""
-from datetime import datetime
 import logging
 
 import voluptuous as vol
@@ -13,6 +12,7 @@ from .const import (
     ATTR_START_DATE,
     ATTR_TEMPERATURE,
 )
+from homeassistant.util.dt import parse_date
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,8 +106,10 @@ class VaillantServiceHandler:
         start_str = call.data.get(ATTR_START_DATE, None)
         end_str = call.data.get(ATTR_END_DATE, None)
         temp = call.data.get(ATTR_TEMPERATURE)
-        start = datetime.strptime(start_str, "%Y-%m-%d")
-        end = datetime.strptime(end_str, "%Y-%m-%d")
+        start = parse_date(start_str.split('T')[0])
+        end = parse_date(end_str.split('T')[0])
+        if end is None or start is None:
+            raise ValueError("dates are incorrect {} {}".find(start_str, end_str))
         await self._hub.set_holiday_mode(start, end, temp)
 
     async def remove_holiday_mode(self, call):

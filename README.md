@@ -27,6 +27,10 @@ First release using config flow
 ### [1.2.2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.2)
 - Better error handling
 - Component does a reconnection every time an error occurs
+### [1.2.3](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.3)
+- Adapt to HA 0.110 deprecation/warning
+- Add some None-check in case of error when component is starting
+- Fix issue with `set_holiday_mode` (ValueError: unconverted data remains: T00:00:00.000Z)
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`

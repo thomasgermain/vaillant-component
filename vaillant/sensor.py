@@ -31,8 +31,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
         if hub.system.outdoor_temperature:
             sensors.append(OutdoorTemperatureSensor(hub.system.outdoor_temperature))
 
-    for report in hub.system.reports:
-        sensors.append(ReportSensor(report))
+        for report in hub.system.reports:
+            sensors.append(ReportSensor(report))
 
     _LOGGER.info("Adding %s sensor entities", len(sensors))
 
