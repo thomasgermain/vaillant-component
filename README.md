@@ -49,6 +49,8 @@ You can use something like this as automation:
   action:
     - service: vaillant.request_hvac_update
 ```
+### [1.3.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.1)
+- check if a zone is enabled before creating a climate entity.
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
