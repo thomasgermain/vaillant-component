@@ -42,7 +42,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     if hub.system:
         if hub.system.zones:
             for zone in hub.system.zones:
-                if not zone.rbr:
+                if not zone.rbr and zone.enabled:
                     entity = ZoneClimate(hub.system, zone)
                     climates.append(entity)
 
