@@ -51,6 +51,8 @@ You can use something like this as automation:
 ```
 ### [1.3.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.1)
 - check if a zone is enabled before creating a climate entity.
+### [1.3.2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.2)
+- Fix the way the dynamic errors (coming from the API) are refreshed in order to have entities created/removed dynamically without restarting HA
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`

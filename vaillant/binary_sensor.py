@@ -27,7 +27,7 @@ from homeassistant.components.binary_sensor import (
     DOMAIN,
     BinarySensorEntity,
 )
-from homeassistant.util import Throttle
+from homeassistant.helpers.event import async_track_time_interval
 
 from . import ApiHub
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN as VAILLANT
@@ -71,10 +71,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
         entity = QuickModeSensor(hub.system.quick_mode)
         sensors.append(entity)
 
-        handler = VaillantSystemErrorHandler(
-            hub, hass, async_add_entities, DEFAULT_SCAN_INTERVAL
-        )
-        await handler.update()
+        handler = VaillantSystemErrorHandler(hub, hass, async_add_entities)
+        async_track_time_interval(hass, handler.update, DEFAULT_SCAN_INTERVAL)
+        await handler.update(None)
 
     _LOGGER.info("Adding %s binary sensor entities", len(sensors))
 
@@ -346,14 +345,13 @@ class BoilerError(VaillantEntity, BinarySensorEntity, VaillantBoilerEntity):
 class VaillantSystemErrorHandler:
     """Handler responsible for creating dynamically error binary sensor."""
 
-    def __init__(self, hub, hass, async_add_entities, scan_interval) -> None:
+    def __init__(self, hub, hass, async_add_entities) -> None:
         """Init."""
         self.hub = hub
         self._hass = hass
         self._async_add_entities = async_add_entities
-        self.update = Throttle(scan_interval)(self._update)
 
-    async def _update(self):
+    async def update(self, time):
         if self.hub.system.errors:
             reg = await self._hass.helpers.entity_registry.async_get_registry()
 
