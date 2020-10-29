@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import TEMP_CELSIUS
 
+from . import ApiHub
 from .const import DOMAIN as VAILLANT
 from .entities import VaillantEntity
 
@@ -25,14 +26,14 @@ UNIT_TO_DEVICE_CLASS = {
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the Vaillant sensors."""
     sensors = []
-    hub = hass.data[VAILLANT].api
+    hub = hass.data[VAILLANT]
 
     if hub.system:
         if hub.system.outdoor_temperature:
-            sensors.append(OutdoorTemperatureSensor(hub.system.outdoor_temperature))
+            sensors.append(OutdoorTemperatureSensor(hub))
 
         for report in hub.system.reports:
-            sensors.append(ReportSensor(report))
+            sensors.append(ReportSensor(hub, report))
 
     _LOGGER.info("Adding %s sensor entities", len(sensors))
 
@@ -43,10 +44,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class OutdoorTemperatureSensor(VaillantEntity):
     """Outdoor temperature sensor."""
 
-    def __init__(self, outdoor_temp):
+    def __init__(self, hub: ApiHub):
         """Initialize entity."""
-        super().__init__(DOMAIN, DEVICE_CLASS_TEMPERATURE, "outdoor", "Outdoor")
-        self._outdoor_temp = outdoor_temp
+        super().__init__(hub, DOMAIN, "outdoor", "Outdoor", DEVICE_CLASS_TEMPERATURE)
+        self._outdoor_temp = hub.system.outdoor_temperature
 
     @property
     def state(self):
@@ -76,13 +77,13 @@ class OutdoorTemperatureSensor(VaillantEntity):
 class ReportSensor(VaillantEntity):
     """Report sensor."""
 
-    def __init__(self, report: Report):
+    def __init__(self, hub: ApiHub, report: Report):
         """Init entity."""
         device_class = UNIT_TO_DEVICE_CLASS.get(report.unit, None)
         if not device_class:
             _LOGGER.warning("No device class for %s", report.unit)
         VaillantEntity.__init__(
-            self, DOMAIN, device_class, report.id, report.name, False
+            self, hub, DOMAIN, report.id, report.name, device_class, False
         )
         self.report = report
 

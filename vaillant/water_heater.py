@@ -12,6 +12,7 @@ from homeassistant.components.water_heater import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 
+from . import ApiHub
 from .const import DOMAIN as VAILLANT
 from .entities import VaillantEntity
 from .utils import gen_state_attrs
@@ -35,10 +36,10 @@ AWAY_MODES = [
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up water_heater platform."""
     entities = []
-    hub = hass.data[VAILLANT].api
+    hub = hass.data[VAILLANT]
 
     if hub.system and hub.system.dhw and hub.system.dhw.hotwater:
-        entity = VaillantWaterHeater(hub.system.dhw.hotwater)
+        entity = VaillantWaterHeater(hub)
         entities.append(entity)
 
     _LOGGER.info("Added water heater? %s", len(entities) > 0)
@@ -49,10 +50,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class VaillantWaterHeater(VaillantEntity, WaterHeaterEntity):
     """Represent the vaillant water heater."""
 
-    def __init__(self, hotwater: HotWater):
+    def __init__(self, hub: ApiHub):
         """Initialize entity."""
-        super().__init__(DOMAIN, None, hotwater.id, hotwater.name)
-        self._hotwater = hotwater
+        self._hotwater = hub.system.dhw.hotwater
+        super().__init__(hub, DOMAIN, self._hotwater.id, self._hotwater.name)
         self._active_mode = None
         self._operations = {mode.name: mode for mode in HotWater.MODES}
 
@@ -112,7 +113,7 @@ class VaillantWaterHeater(VaillantEntity, WaterHeaterEntity):
         Adding current temperature
         """
         attrs = super().state_attributes
-        attrs.update(gen_state_attrs(self.component, self.component, self._active_mode))
+        attrs.update(gen_state_attrs(self.component, self._active_mode))
         return attrs
 
     @property

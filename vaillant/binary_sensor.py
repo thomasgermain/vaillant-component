@@ -1,16 +1,11 @@
 """Interfaces with Vaillant binary sensors."""
 
-from abc import ABC
 import logging
 
 from pymultimatic.model import (
-    BoilerStatus,
-    Circulation,
     Device,
     Error,
-    HolidayMode,
     OperatingModes,
-    QuickMode,
     QuickModes,
     Room,
     SettingModes,
@@ -27,16 +22,13 @@ from homeassistant.components.binary_sensor import (
     DOMAIN,
     BinarySensorEntity,
 )
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
+from homeassistant.util import slugify
 
 from . import ApiHub
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN as VAILLANT
-from .entities import (
-    VaillantBoilerEntity,
-    VaillantBoxEntity,
-    VaillantEntity,
-    VaillantRoomEntity,
-)
+from .entities import VaillantEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,34 +36,34 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the Vaillant binary sensor platform."""
     sensors = []
-    hub: ApiHub = hass.data[VAILLANT].api
+    hub: ApiHub = hass.data[VAILLANT]
     if hub.system:
         if hub.system.dhw and hub.system.dhw.circulation:
-            sensors.append(CirculationSensor(hub.system.dhw.circulation))
+            sensors.append(CirculationSensor(hub))
 
         if hub.system.boiler_status:
-            sensors.append(BoilerError(hub.system.boiler_status))
+            sensors.append(BoilerError(hub))
 
         if hub.system.info:
-            sensors.append(BoxOnline(hub.system.info))
-            sensors.append(BoxUpdate(hub.system.info))
+            sensors.append(BoxOnline(hub, hub.system.info))
+            sensors.append(BoxUpdate(hub, hub.system.info))
 
         for room in hub.system.rooms:
-            sensors.append(RoomWindow(room))
+            sensors.append(RoomWindow(hub, room))
             for device in room.devices:
                 if device.device_type == "VALVE":
-                    sensors.append(RoomDeviceChildLock(device, room))
+                    sensors.append(RoomDeviceChildLock(hub, device, room))
 
-                sensors.append(RoomDeviceBattery(device, room))
-                sensors.append(RoomDeviceConnectivity(device, room))
+                sensors.append(RoomDeviceBattery(hub, device, room))
+                sensors.append(RoomDeviceConnectivity(hub, device, room))
 
-        entity = HolidayModeSensor(hub.system.holiday)
+        entity = HolidayModeSensor(hub)
         sensors.append(entity)
 
-        entity = QuickModeSensor(hub.system.quick_mode)
+        entity = QuickModeSensor(hub)
         sensors.append(entity)
 
-        handler = VaillantSystemErrorHandler(hub, hass, async_add_entities)
+        handler = SystemErrorHandler(hub, hass, async_add_entities)
         async_track_time_interval(hass, handler.update, DEFAULT_SCAN_INTERVAL)
         await handler.update(None)
 
@@ -84,12 +76,17 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class CirculationSensor(VaillantEntity, BinarySensorEntity):
     """Binary sensor for circulation running on or not."""
 
-    def __init__(self, circulation: Circulation):
+    def __init__(self, hub: ApiHub):
         """Initialize entity."""
+        self._circulation = hub.system.dhw.circulation
         super().__init__(
-            DOMAIN, DEVICE_CLASS_POWER, circulation.id, circulation.name, False
+            hub,
+            DOMAIN,
+            self._circulation.id,
+            self._circulation.name,
+            DEVICE_CLASS_POWER,
+            False,
         )
-        self._circulation = circulation
         self._active_mode = None
 
     @property
@@ -116,9 +113,9 @@ class CirculationSensor(VaillantEntity, BinarySensorEntity):
 class RoomWindow(VaillantEntity, BinarySensorEntity):
     """Vaillant window binary sensor."""
 
-    def __init__(self, room: Room):
+    def __init__(self, hub: ApiHub, room: Room):
         """Initialize entity."""
-        super().__init__(DOMAIN, DEVICE_CLASS_WINDOW, room.name, room.name)
+        super().__init__(hub, DOMAIN, room.name, room.name, DEVICE_CLASS_WINDOW)
         self._room = room
 
     @property
@@ -144,15 +141,35 @@ class RoomWindow(VaillantEntity, BinarySensorEntity):
         self._room = new_room
 
 
-class RoomDevice(VaillantEntity, VaillantRoomEntity, BinarySensorEntity, ABC):
-    """Base class for device in room."""
+class RoomDeviceEntity(VaillantEntity, BinarySensorEntity):
+    """Base class for ambisense device."""
 
-    def __init__(self, device: Device, room: Room, device_class):
-        """Initialize entity."""
-        VaillantEntity.__init__(self, DOMAIN, device_class, device.sgtin, device.name)
-        VaillantRoomEntity.__init__(self, device)
-        self._room = room
-        self._device_class = device_class
+    def __init__(self, hub: ApiHub, device: Device, room: Room, device_class) -> None:
+        """Initialize device."""
+        VaillantEntity.__init__(
+            self, hub, DOMAIN, device.sgtin, device.name, device_class
+        )
+        self.room = room
+        self.device = device
+
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        return {
+            "identifiers": {(VAILLANT, self.device.sgtin)},
+            "name": self.device.name,
+            "manufacturer": "Vaillant",
+            "model": self.device.device_type,
+        }
+
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "device_id": self.device.sgtin,
+            "battery_low": self.device.battery_low,
+            "connected": not self.device.radio_out_of_reach,
+        }
 
     # pylint: disable=no-self-use
     def _find_device(self, new_room: Room, sgtin: str):
@@ -169,7 +186,7 @@ class RoomDevice(VaillantEntity, VaillantRoomEntity, BinarySensorEntity, ABC):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        new_room: Room = self.hub.find_component(self._room)
+        new_room: Room = self.hub.find_component(self.room)
         new_device: Device = self._find_device(new_room, self.device.sgtin)
 
         if new_room:
@@ -182,52 +199,34 @@ class RoomDevice(VaillantEntity, VaillantRoomEntity, BinarySensorEntity, ABC):
             else:
                 _LOGGER.debug("Device %s doesn't exist anymore", self.device.sgtin)
         else:
-            _LOGGER.debug("Room %s doesn't exist anymore", self._room.id)
-        self._room = new_room
+            _LOGGER.debug("Room %s doesn't exist anymore", self.room.id)
+        self.room = new_room
         self.device = new_device
 
 
-class RoomDeviceChildLock(RoomDevice, BinarySensorEntity):
+class RoomDeviceChildLock(RoomDeviceEntity):
     """Binary sensor for valve child lock.
 
     At vaillant API, the lock is set at a room level, but it applies to all
-    device inside the room.
+    devices inside a room.
     """
 
-    def __init__(self, device: Device, room: Room):
+    def __init__(self, hub: ApiHub, device: Device, room: Room):
         """Initialize entity."""
-        super().__init__(device, room, DEVICE_CLASS_LOCK)
-
-    @property
-    def available(self):
-        """Return True if entity is available."""
-        return self._room is not None
-
-    async def vaillant_update(self):
-        """Update specific for vaillant."""
-        new_room: Room = self.hub.find_component(self._room)
-
-        if new_room:
-            _LOGGER.debug(
-                "New / old state: %s / %s", new_room.child_lock, self._room.child_lock
-            )
-        else:
-            _LOGGER.debug("Room %s doesn't exist anymore", self._room.id)
-        self._room = new_room
-        self.device = self._find_device(new_room, self.device.sgtin)
+        super().__init__(hub, device, room, DEVICE_CLASS_LOCK)
 
     @property
     def is_on(self):
         """According to the doc, true means unlock, false lock."""
-        return not self._room.child_lock
+        return not self.room.child_lock
 
 
-class RoomDeviceBattery(RoomDevice):
+class RoomDeviceBattery(RoomDeviceEntity):
     """Represent a device battery."""
 
-    def __init__(self, device: Device, room: Room):
+    def __init__(self, hub: ApiHub, device: Device, room: Room):
         """Initialize entity."""
-        super().__init__(device, room, DEVICE_CLASS_BATTERY)
+        super().__init__(hub, device, room, DEVICE_CLASS_BATTERY)
 
     @property
     def is_on(self):
@@ -235,12 +234,12 @@ class RoomDeviceBattery(RoomDevice):
         return self.device.battery_low
 
 
-class RoomDeviceConnectivity(RoomDevice):
+class RoomDeviceConnectivity(RoomDeviceEntity):
     """Device in room is out of reach or not."""
 
-    def __init__(self, device: Device, room: Room):
+    def __init__(self, hub: ApiHub, device: Device, room: Room):
         """Initialize entity."""
-        super().__init__(device, room, DEVICE_CLASS_CONNECTIVITY)
+        super().__init__(hub, device, room, DEVICE_CLASS_CONNECTIVITY)
 
     @property
     def is_on(self):
@@ -248,13 +247,34 @@ class RoomDeviceConnectivity(RoomDevice):
         return not self.device.radio_out_of_reach
 
 
-class BaseVaillantSystem(VaillantEntity, VaillantBoxEntity, BinarySensorEntity):
-    """Base class for system wide binary sensor."""
+class VRBoxEntity(VaillantEntity, BinarySensorEntity):
+    """Vaillant gateway device (ex: VR920)."""
 
-    def __init__(self, info: SystemInfo, device_class, name, comp_id):
+    def __init__(self, hub: ApiHub, info: SystemInfo, device_class, name, comp_id):
         """Initialize entity."""
-        VaillantEntity.__init__(self, DOMAIN, device_class, name, comp_id, False)
-        VaillantBoxEntity.__init__(self, info)
+        VaillantEntity.__init__(self, hub, DOMAIN, comp_id, name, device_class, False)
+        self.system_info = info
+
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        return {
+            "identifiers": {(VAILLANT, self.system_info.serial_number)},
+            "connections": {(CONNECTION_NETWORK_MAC, self.system_info.mac_ethernet)},
+            "name": self.system_info.gateway,
+            "manufacturer": "Vaillant",
+            "model": self.system_info.gateway,
+            "sw_version": self.system_info.firmware,
+        }
+
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "serial_number": self.system_info.serial_number,
+            "connected": self.system_info.is_online,
+            "up_to_date": self.system_info.is_up_to_date,
+        }
 
     @property
     def available(self):
@@ -276,12 +296,14 @@ class BaseVaillantSystem(VaillantEntity, VaillantBoxEntity, BinarySensorEntity):
         self.system_info = system_info
 
 
-class BoxUpdate(BaseVaillantSystem):
+class BoxUpdate(VRBoxEntity):
     """Update binary sensor."""
 
-    def __init__(self, info: SystemInfo):
+    def __init__(self, hub: ApiHub, info: SystemInfo):
         """Init."""
-        super().__init__(info, DEVICE_CLASS_POWER, "System update", "system_update")
+        super().__init__(
+            hub, info, DEVICE_CLASS_POWER, "System update", "system_update"
+        )
 
     @property
     def is_on(self):
@@ -289,13 +311,13 @@ class BoxUpdate(BaseVaillantSystem):
         return not self.system_info.is_up_to_date
 
 
-class BoxOnline(BaseVaillantSystem):
+class BoxOnline(VRBoxEntity):
     """Check if box is online."""
 
-    def __init__(self, info: SystemInfo):
+    def __init__(self, hub: ApiHub, info: SystemInfo):
         """Init."""
-        BaseVaillantSystem.__init__(
-            self, info, DEVICE_CLASS_CONNECTIVITY, "System Online", "system_online",
+        super().__init__(
+            hub, info, DEVICE_CLASS_CONNECTIVITY, "System Online", "system_online"
         )
 
     @property
@@ -304,60 +326,81 @@ class BoxOnline(BaseVaillantSystem):
         return self.system_info.is_online
 
 
-class BoilerError(VaillantEntity, BinarySensorEntity, VaillantBoilerEntity):
+class BoilerError(VaillantEntity, BinarySensorEntity):
     """Check if there is some error."""
 
-    def __init__(self, boiler_status: BoilerStatus):
+    def __init__(self, hub: ApiHub):
         """Initialize entity."""
+        self._boiler_status = hub.system.boiler_status
         VaillantEntity.__init__(
             self,
+            hub,
             DOMAIN,
+            self._boiler_status.device_name,
+            self._boiler_status.device_name,
             DEVICE_CLASS_PROBLEM,
-            boiler_status.device_name,
-            boiler_status.device_name,
             False,
         )
-        VaillantBoilerEntity.__init__(self, boiler_status)
-        self._state_attrs = {}
+        self._boiler_id = slugify(self._boiler_status.device_name)
 
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-        return self.boiler_status is not None and self.boiler_status.is_error
+        return self._boiler_status is not None and self._boiler_status.is_error
 
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        if self.boiler_status is not None:
-            self._state_attrs = {
-                "status_code": self.boiler_status.status_code,
-                "title": self.boiler_status.title,
-                "timestamp": self.boiler_status.timestamp,
+        if self._boiler_status is not None:
+            return {
+                "status_code": self._boiler_status.status_code,
+                "title": self._boiler_status.title,
+                "timestamp": self._boiler_status.timestamp,
             }
-        return self._state_attrs
+        return None
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
         _LOGGER.debug("new boiler status is %s", self.hub.system.boiler_status)
-        self.boiler_status = self.hub.system.boiler_status
+        self._boiler_status = self.hub.system.boiler_status
+
+    @property
+    def device_info(self):
+        """Return device specific attributes."""
+        if self._boiler_status is not None:
+            return {
+                "identifiers": {(VAILLANT, self._boiler_id)},
+                "name": self._boiler_status.device_name,
+                "manufacturer": "Vaillant",
+                "model": self._boiler_status.device_name,
+            }
+        return None
+
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes."""
+        if self._boiler_status is not None:
+            return {"device_id": self._boiler_id, "error": self._boiler_status.is_error}
+        return None
 
 
-class VaillantSystemErrorHandler:
+class SystemErrorHandler:
     """Handler responsible for creating dynamically error binary sensor."""
 
-    def __init__(self, hub, hass, async_add_entities) -> None:
+    def __init__(self, hub: ApiHub, hass, async_add_entities) -> None:
         """Init."""
         self.hub = hub
         self._hass = hass
         self._async_add_entities = async_add_entities
 
     async def update(self, time):
+        """Check for error. It doesn't do IO."""
         if self.hub.system.errors:
             reg = await self._hass.helpers.entity_registry.async_get_registry()
 
             sensors = []
             for error in self.hub.system.errors:
-                binary_sensor = VaillantSystemError(error)
+                binary_sensor = VaillantSystemError(self.hub, error)
                 if not reg.async_is_registered(binary_sensor.entity_id):
                     sensors.append(binary_sensor)
 
@@ -368,14 +411,15 @@ class VaillantSystemErrorHandler:
 class VaillantSystemError(VaillantEntity, BinarySensorEntity):
     """Check if there is any error message from system."""
 
-    def __init__(self, error: Error):
+    def __init__(self, hub: ApiHub, error: Error):
         """Init."""
         self._error = error
         super().__init__(
+            hub,
             DOMAIN,
-            DEVICE_CLASS_PROBLEM,
             "error_" + error.status_code,
             error.title,
+            DEVICE_CLASS_PROBLEM,
             False,
         )
 
@@ -401,9 +445,9 @@ class VaillantSystemError(VaillantEntity, BinarySensorEntity):
         if self._error.status_code in [e.status_code for e in list(errors.values())]:
             self._error = errors.get(self._error.status_code)
         else:
-            self.hass.async_create_task(self._remove())
+            async_call_later(self.hass, 0.1, self._remove)
 
-    async def _remove(self):
+    async def _remove(self, *_):
         """Remove entity itself."""
         await self.async_remove()
 
@@ -421,10 +465,10 @@ class VaillantSystemError(VaillantEntity, BinarySensorEntity):
 class HolidayModeSensor(VaillantEntity, BinarySensorEntity):
     """Binary sensor for holiday mode."""
 
-    def __init__(self, holiday_mode: HolidayMode):
+    def __init__(self, hub: ApiHub):
         """Init."""
-        super().__init__(DOMAIN, DEVICE_CLASS_POWER, "holiday", "holiday", False)
-        self._holiday = holiday_mode
+        super().__init__(hub, DOMAIN, "holiday", "holiday", DEVICE_CLASS_POWER, False)
+        self._holiday = hub.system.holiday
 
     @property
     def is_on(self):
@@ -450,10 +494,12 @@ class HolidayModeSensor(VaillantEntity, BinarySensorEntity):
 class QuickModeSensor(VaillantEntity, BinarySensorEntity):
     """Binary sensor for holiday mode."""
 
-    def __init__(self, quick_mode: QuickMode):
+    def __init__(self, hub: ApiHub):
         """Init."""
-        super().__init__(DOMAIN, DEVICE_CLASS_POWER, "quick_mode", "quick_mode", False)
-        self._quick_mode = quick_mode
+        super().__init__(
+            hub, DOMAIN, "quick_mode", "quick_mode", DEVICE_CLASS_POWER, False
+        )
+        self._quick_mode = hub.system.quick_mode
 
     @property
     def is_on(self):

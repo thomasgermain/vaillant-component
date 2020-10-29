@@ -7,14 +7,16 @@ from pymultimatic.model import (
     HolidayMode,
     HotWater,
     OperatingModes,
+    QuickMode,
     QuickModes,
     QuickVeto,
     Room,
     System,
     Zone,
+    ZoneCooling,
+    ZoneHeating,
 )
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.util import Throttle
 
@@ -22,7 +24,6 @@ from .const import (
     DEFAULT_QUICK_VETO_DURATION,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SMART_PHONE_ID,
-    DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ class ApiHub:
         self.system: System = None
         self.update_system = Throttle(DEFAULT_SCAN_INTERVAL)(self._update_system)
         self._hass = hass
+        self.entities = []
 
     async def authenticate(self):
         """Try to authenticate to the API."""
@@ -92,7 +94,7 @@ class ApiHub:
         return True
 
     async def _handle_api_error(self, api_err):
-        resp = await api_err.response.json()
+        resp = await api_err.response.text()
         _LOGGER.exception(
             "Unable to fetch data from vaillant, API says: %s, status: %s",
             resp,
@@ -219,19 +221,25 @@ class ApiHub:
         self.system.dhw.hotwater = hotwater
         await self._refresh(touch_system, entity)
 
-    async def set_room_operating_mode(self, entity, room, mode):
+    async def set_room_operating_mode(self, entity, mode):
         """Set room operation mode.
 
         If there is a quick mode that impact room running on or holiday mode,
         remove it.
         """
         touch_system = await self._remove_quick_mode_or_holiday(entity)
+        room = entity.component
         if room.quick_veto is not None:
             await self._manager.remove_room_quick_veto(room.id)
             room.quick_veto = None
 
-        await self._manager.set_room_operating_mode(room.id, mode)
-        room.operating_mode = mode
+        if isinstance(mode, QuickMode):
+            await self._manager.set_quick_mode(mode)
+            self.system.quick_mode = mode
+            touch_system = True
+        else:
+            await self._manager.set_room_operating_mode(room.id, mode)
+            room.operating_mode = mode
 
         self.system.set_room(room.id, room)
         await self._refresh(touch_system, entity)
@@ -249,8 +257,17 @@ class ApiHub:
             await self._manager.remove_zone_quick_veto(zone.id)
             zone.quick_veto = None
 
-        await self._manager.set_zone_operating_mode(zone.id, mode)
-        zone.heating.operating_mode = mode
+        if isinstance(mode, QuickMode):
+            await self._manager.set_quick_mode(mode)
+            self.system.quick_mode = mode
+            touch_system = True
+        else:
+            if zone.heating and mode in ZoneHeating.MODES:
+                await self._manager.set_zone_heating_operating_mode(zone.id, mode)
+                zone.heating.operating_mode = mode
+            if zone.cooling and mode in ZoneCooling.MODES:
+                await self._manager.set_zone_cooling_operating_mode(zone.id, mode)
+                zone.cooling.operating_mode = mode
 
         self.system.set_zone(zone.id, zone)
         await self._refresh(touch_system, entity)
@@ -275,7 +292,7 @@ class ApiHub:
         await self._refresh_entities()
 
     async def set_quick_mode(self, mode):
-        """Set quick mode (remove evious one)."""
+        """Set quick mode (remove previous one)."""
         await self._remove_quick_mode_no_refresh()
         await self._manager.set_quick_mode(QuickModes.get(mode))
         await self._refresh_entities()
@@ -312,7 +329,7 @@ class ApiHub:
 
     def get_entity(self, entity_id):
         """Get entity owned by this component."""
-        for entity in self._hass.data[DOMAIN].entities:
+        for entity in self.entities:
             if entity.entity_id == entity_id:
                 return entity
         return None
@@ -346,14 +363,15 @@ class ApiHub:
         return removed
 
     async def _remove_quick_mode_or_holiday(self, entity):
-        return await self._remove_holiday_mode_no_refresh() | await self._remove_quick_mode_no_refresh(
-            entity
+        return (
+            await self._remove_holiday_mode_no_refresh()
+            | await self._remove_quick_mode_no_refresh(entity)
         )
 
     async def _refresh_entities(self):
         """Fetch vaillant data and force refresh of all listening entities."""
         await self.update_system(no_throttle=True)
-        for entity in self._hass.data[DOMAIN].entities:
+        for entity in self.entities:
             if entity.listening:
                 entity.async_schedule_update_ha_state(True)
 
@@ -362,13 +380,3 @@ class ApiHub:
             await self._refresh_entities()
         else:
             entity.async_schedule_update_ha_state(True)
-
-
-class DomainData:
-    """Data for the integration."""
-
-    def __init__(self, api: ApiHub, entry: ConfigEntry) -> None:
-        """Init."""
-        self.api = api
-        self.entry = entry
-        self.entities = []

@@ -54,6 +54,11 @@ You can use something like this as automation:
 ### [1.3.2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.2)
 - Fix the way the dynamic errors (coming from the API) are refreshed in order to have entities created/removed dynamically without restarting HA
 
+### [1.4.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.4.0)
+- Supporting cooling
+- **BREAKING CHANGES** on vaillant mode <> hvac mode & preset mode, please see `Expected behavior` below
+
+
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
 - 1 climate entity per zone (expect if the zone is controlled by room) `climate.vaillant_<zone id>`
@@ -67,7 +72,7 @@ You can use something like this as automation:
 - 1 binary_sensor entity `binary_sensor.vaillant_system_online` to know if the vr900/920 is connected to the internet
 - 1 binary_sensor entity `binary_sensor.vaillant_<boiler model>` to know if there is an error at the boiler. **Some boiler does not provide this information, so entity won't be available.**
 - 1 temperature sensor `sensor.vaillant_outdoor_temperature` for outdoor temperature
-- 1 sensor for each report in live_report
+- 1 sensor for each report in live_report (boiler temperature, boiler water pressure, etc.)
 - 1 binary sensor `binary_sensor.vaillant_quick_mode` to know a quick mode is running on
 - 1 binary sensor ` binary_sensor.vaillant_holiday` to know the holiday mode is on/off
 - dynamic binary sensors if there are extra errors coming from the api.
@@ -76,12 +81,13 @@ You can use something like this as automation:
 - 1 device per VR50 or VR51
 - 1 device for the boiler (if supported). Some boiler don't provide enough information to be able to create a device in HA.
 - 1 device for the gateway (like VR920)
+- 1 "multimatic" (VRC700) device (the water pressure is linked to the VRC 700 inside the vaillant API)
+- hot water circuit
+- heating circuit
 
 
 For the climate and water heater entities, you can also found 
 - the 'real vaillant mode' running on (AUTO, MANUAL, DAY, etc)
-- the next setting (DAY, NIGHT for a zone) or next target temperature for a room (when auto)
-- when the current setting ends (when auto)
 
 For the boiler error entity, you can also found 
 - the last update (this is not the last HA update, this is the last time vaillant checks the boiler)
@@ -98,7 +104,7 @@ For the `binary_sensor.vaillant_holiday`, when on, you have the start date, end 
 - `vaillant.remove_quick_mode` don't tell me you don't get it 
 - `vaillant.set_quick_veto` to set a quick veto for a climate entity
 - `vaillant.remove_quick_veto` to remove a quick veto for a climate entity
-- `vaillant.request_hvac_update` to tell vaillant API to fetch data from your installation and made them avaible in the API
+- `vaillant.request_hvac_update` to tell vaillant API to fetch data from your installation and made them available in the API
 
 This will allow you to create some buttons in UI to activate/deactivate quick mode or holiday mode with a single click
 
@@ -106,22 +112,34 @@ This will allow you to create some buttons in UI to activate/deactivate quick mo
 ## Expected behavior
 
 On **room** climate:
-- Changing temperature while on MANUAL mode will simply change the target temperature
-- Changing temperature while on other modes (included quick veto) will create a a quick veto with the selected temperature and configured `quick_veto_duration`
-- Changing hvac mode to AUTO will set vaillant mode to AUTO (so it will follow the time program)
-- Changing hvac mode to OFF will set vaillant mode to OFF
-- if there is a quick mode (or holiday mode) impacting room, it will be removed upon change
-- QM_SYSTEM_OFF and holiday mode will lead to hvac OFF
+
+Changing temperature while ...
+- `MANUAL` mode -> it simply changes target temperature
+- other modes -> it creates a quick_veto (duration = 3 hours) (it's also removing holiday or quick mode)
+
+Modes mapping:
+- `AUTO` -> `HVAC_MODE_AUTO` & `PRESET_COMFORT`
+- `OFF` -> `HVAC_MODE_OFF` & no preset
+- `QUICK_VETO` -> no hvac & `PRESET_QUICK_VETO` (custom)
+- `QM_SYSTEM_OFF` -> `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)
+- `HOLIDAY` -> `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)
+- `MANUAL` -> no hvac & `PRESET_MANUAL` (custom)
 
 On **zone** climate:
 - Changing temperature will lead to a quick veto with selected temperature for 6 hours (quick veto duration is not configurable for a zone)
-- Changing hvac mode to AUTO will set vaillant mode to AUTO (so it will follow the time program)
-- Changing hvac mode to OFF will set vaillant mode to OFF
-- Changing hvac mode to HEAT will set vaillant mode to DAY
-- Changing hvac mode to COOL will set vaillant mode to NIGHT
-- if there is a quick mode (or holiday mode) impacting zone, it will be removed upon change
-- QM_SYSTEM_OFF and holiday mode will lead to hvac OFF
-- QM_ONE_DAY_AT_HOME will lead to hvac AUTO (but with the time program of the sunday)
-- QM_PARTY -> HVAC_MODE_HEAT
-- QM_VENTILATION_BOOST -> HVAC_MODE_FAN_ONLY
-- ONE_DAY_AWAY -> hvac OFF 
+
+Modes mapping:
+- `AUTO` -> `HVAC_MODE_AUTO` & `PRESET_COMFORT`
+- `DAY`: no hvac & `PRESET_DAY` (custom)
+- `NIGHT`: no hvac & `PRESET_SLEEP`
+- `OFF` -> `HVAC_MODE_OFF` & no preset
+- `ON` (= cooling ON) -> no hvac & `PRESET_COOLING_ON` (custom)
+- `QUICK_VETO` -> no hvac & `PRESET_QUICK_VETO` (custom)
+- `QM_ONE_DAY_AT_HOME` -> HVAC_MODE_AUTO & `PRESET_HOME`
+- `QM_PARTY` -> no hvac & `PRESET_PARTY` (custom)
+- `QM_VENTILATION_BOOST` -> `HVAC_MODE_FAN_ONLY` & no preset
+- `QM_ONE_DAY_AWAY` -> `HVAC_MODE_OFF` & `PRESET_AWAY`
+- `QM_SYSTEM_OFF` -> `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)
+- `HOLIDAY` -> `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)
+- `QM_COOLING_FOR_X_DAYS` -> no hvac & `PRESET_COOLING_FOR_X_DAYS`
+
