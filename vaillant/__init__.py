@@ -7,7 +7,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, EVENT_HOMEASSISTAN
 from homeassistant.core import HomeAssistant
 
 from .const import CONF_SERIAL_NUMBER, DOMAIN, PLATFORMS
-from .hub import ApiHub, DomainData
+from .hub import ApiHub
 from .service import SERVICES, VaillantServiceHandler
 
 SCAN_INTERVAL = timedelta(minutes=1)
@@ -28,7 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     await api.authenticate()
     await api.update_system()
 
-    hass.data[DOMAIN] = DomainData(api, entry)
+    hass.data[DOMAIN] = api
 
     for platform in PLATFORMS:
         hass.async_create_task(

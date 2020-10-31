@@ -6,6 +6,7 @@ import voluptuous as vol
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.util.dt import parse_date
 
+from . import ApiHub
 from .const import (
     ATTR_DURATION,
     ATTR_END_DATE,
@@ -98,7 +99,7 @@ SERVICES = {
 class VaillantServiceHandler:
     """Service implementation."""
 
-    def __init__(self, hub, hass) -> None:
+    def __init__(self, hub: ApiHub, hass) -> None:
         """Init."""
         self._hub = hub
         self._hass = hass
