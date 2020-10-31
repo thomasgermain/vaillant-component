@@ -11,7 +11,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import TEMP_CELSIUS
 
 from . import ApiHub
-from .const import DOMAIN as VAILLANT
+from .const import DOMAIN as VAILLANT, HUB
 from .entities import VaillantEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ UNIT_TO_DEVICE_CLASS = {
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the Vaillant sensors."""
     sensors = []
-    hub = hass.data[VAILLANT]
+    hub = hass.data[VAILLANT][entry.unique_id][HUB]
 
     if hub.system:
         if hub.system.outdoor_temperature:
@@ -68,10 +68,10 @@ class OutdoorTemperatureSensor(VaillantEntity):
         """Update specific for vaillant."""
         _LOGGER.debug(
             "New / old temperature: %s / %s",
-            self.hub.system.outdoor_temperature,
+            self.coordinator.system.outdoor_temperature,
             self._outdoor_temp,
         )
-        self._outdoor_temp = self.hub.system.outdoor_temperature
+        self._outdoor_temp = self.coordinator.system.outdoor_temperature
 
 
 class ReportSensor(VaillantEntity):
@@ -86,14 +86,15 @@ class ReportSensor(VaillantEntity):
             self, hub, DOMAIN, report.id, report.name, device_class, False
         )
         self.report = report
+        self._report_id = report.id
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
         self.report = self._find_report()
 
     def _find_report(self):
-        for report in self.hub.system.reports:
-            if self.report.id == report.id:
+        for report in self.coordinator.system.reports:
+            if self._report_id == report.id:
                 return report
         return None
 

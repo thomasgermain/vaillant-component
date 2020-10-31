@@ -13,7 +13,7 @@ from homeassistant.components.water_heater import (
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 
 from . import ApiHub
-from .const import DOMAIN as VAILLANT
+from .const import DOMAIN as VAILLANT, HUB
 from .entities import VaillantEntity
 from .utils import gen_state_attrs
 
@@ -36,7 +36,7 @@ AWAY_MODES = [
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up water_heater platform."""
     entities = []
-    hub = hass.data[VAILLANT]
+    hub = hass.data[VAILLANT][entry.unique_id][HUB]
 
     if hub.system and hub.system.dhw and hub.system.dhw.hotwater:
         entity = VaillantWaterHeater(hub)
@@ -161,26 +161,26 @@ class VaillantWaterHeater(VaillantEntity, WaterHeaterEntity):
         target_temp = float(kwargs.get(ATTR_TEMPERATURE))
         _LOGGER.debug("Trying to set target temp to %s", target_temp)
         # HUB will call sync update
-        await self.hub.set_hot_water_target_temperature(self, target_temp)
+        await self.coordinator.set_hot_water_target_temperature(self, target_temp)
 
     async def async_set_operation_mode(self, operation_mode):
         """Set new target operation mode."""
         _LOGGER.debug("Will set new operation_mode %s", operation_mode)
         if operation_mode in self._operations.keys():
             mode = self._operations[operation_mode]
-            await self.hub.set_hot_water_operating_mode(self, mode)
+            await self.coordinator.set_hot_water_operating_mode(self, mode)
         else:
             _LOGGER.debug("Operation mode is unknown")
 
     async def async_turn_away_mode_on(self):
         """Turn away mode on."""
-        await self.hub.set_hot_water_operating_mode(self, OperatingModes.OFF)
+        await self.coordinator.set_hot_water_operating_mode(self, OperatingModes.OFF)
 
     async def async_turn_away_mode_off(self):
         """Turn away mode off."""
-        await self.hub.set_hot_water_operating_mode(self, OperatingModes.AUTO)
+        await self.coordinator.set_hot_water_operating_mode(self, OperatingModes.AUTO)
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        self._hotwater = self.hub.system.dhw.hotwater
-        self._active_mode = self.hub.system.get_active_mode_hot_water()
+        self._hotwater = self.coordinator.system.dhw.hotwater
+        self._active_mode = self.coordinator.system.get_active_mode_hot_water()

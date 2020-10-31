@@ -19,5 +19,14 @@
     "abort": {
       "already_configured": "Dozwolona jest tylko jedna konfiguracja"
     }
+  },
+   "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Minutes between scans"
+        }
+      }
+    }
   }
 }

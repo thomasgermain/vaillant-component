@@ -58,6 +58,13 @@ You can use something like this as automation:
 - Supporting cooling
 - **BREAKING CHANGES** on vaillant mode <> hvac mode & preset mode, please see `Expected behavior` below
 
+### [1.5.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0)
+- moving to `DataUpdateCoordinator`
+- Allowing multiple instance of the integration
+- Fire event when quick mode and holiday mode is active (so listening entities are notified) instead of maintaining a list of entities inside the hub.
+- IO optimization when quick mode or holiday mode is changing.
+- Add a scan interval option
+- Fix error when a live report is not in the API anymore.
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
@@ -142,4 +149,3 @@ Modes mapping:
 - `QM_SYSTEM_OFF` -> `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)
 - `HOLIDAY` -> `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)
 - `QM_COOLING_FOR_X_DAYS` -> no hvac & `PRESET_COOLING_FOR_X_DAYS`
-

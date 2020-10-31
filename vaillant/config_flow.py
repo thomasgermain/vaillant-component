@@ -5,10 +5,16 @@ from pymultimatic.api import ApiError
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
+from homeassistant.core import callback
+import homeassistant.helpers.config_validation as cv
 
-from . import ApiHub
-from .const import CONF_SERIAL_NUMBER, DOMAIN  # pylint:disable=unused-import
+from .const import (  # pylint: disable=unused-import
+    CONF_SERIAL_NUMBER,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+)
+from .hub import check_authentication
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,12 +42,11 @@ async def validate_input(hass: core.HomeAssistant, data):
 
 async def validate_authentication(hass, username, password, serial):
     """Ensure provided credentials are working."""
-    hub: ApiHub = ApiHub(hass, username, password, serial)
     try:
-        if not await hub.authenticate():
+        if not await check_authentication(hass, username, password, serial):
             raise InvalidAuth
     except ApiError as err:
-        resp = await err.response.json()
+        resp = await err.response.text()
         _LOGGER.exception(
             "Unable to authenticate, API says: %s, status: %s",
             resp,
@@ -55,6 +60,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return VaillantOptionsFlowHandler(config_entry)
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -75,6 +86,31 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user", data_schema=DATA_SCHEMA, errors=errors
         )
+
+
+class VaillantOptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle a option flow."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Handle options flow."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        data_schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    ),
+                ): cv.positive_int
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=data_schema)
 
 
 class CannotConnect(exceptions.HomeAssistantError):

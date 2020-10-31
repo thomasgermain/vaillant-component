@@ -1,16 +1,16 @@
 """The vaillant integration."""
 import asyncio
-from datetime import timedelta
+import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_SERIAL_NUMBER, DOMAIN, PLATFORMS
+from .const import DOMAIN, HUB, PLATFORMS, REMOVE_ERROR_HANDLER, SERVICES_HANDLER
 from .hub import ApiHub
 from .service import SERVICES, VaillantServiceHandler
 
-SCAN_INTERVAL = timedelta(minutes=1)
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
@@ -21,33 +21,48 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up vaillant from a config entry."""
 
-    username = entry.data[CONF_USERNAME]
-    password = entry.data[CONF_PASSWORD]
-    serial = entry.data.get(CONF_SERIAL_NUMBER)
-    api: ApiHub = ApiHub(hass, username, password, serial)
+    api: ApiHub = ApiHub(hass, entry)
     await api.authenticate()
-    await api.update_system()
+    await api.async_refresh()
 
-    hass.data[DOMAIN] = api
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN].setdefault(entry.unique_id, {})
+    hass.data[DOMAIN][entry.unique_id][HUB] = api
 
     for platform in PLATFORMS:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, platform)
         )
 
-    service_handler = VaillantServiceHandler(api, hass)
-    for vaillant_service in SERVICES:
-        schema = SERVICES[vaillant_service]["schema"]
-        method_name = SERVICES[vaillant_service]["method"]
-        method = getattr(service_handler, method_name)
-        hass.services.async_register(DOMAIN, vaillant_service, method, schema=schema)
-
     async def logout(param):
         await api.logout()
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, logout)
 
+    await async_setup_service(api, hass)
+
     return True
+
+
+async def async_setup_service(api: ApiHub, hass):
+    """Set up services."""
+    if not hass.data.get(SERVICES_HANDLER):
+        service_handler = VaillantServiceHandler(api, hass)
+        for service_key in SERVICES:
+            schema = SERVICES[service_key]["schema"]
+            if not SERVICES[service_key].get("entity", False):
+                hass.services.async_register(
+                    DOMAIN, service_key, service_handler.service_call, schema=schema
+                )
+        hass.data[DOMAIN][SERVICES_HANDLER] = service_handler
+
+
+async def async_unload_services(hass):
+    """Remove service when integration is removed."""
+    service_handler = hass.data[DOMAIN].get(SERVICES_HANDLER, None)
+    if service_handler:
+        for service_name in SERVICES:
+            hass.services.async_remove(DOMAIN, service_name)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
@@ -61,6 +76,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         )
     )
     if unload_ok:
-        hass.data.pop(DOMAIN)
+        hass.data[DOMAIN][entry.unique_id][REMOVE_ERROR_HANDLER]()
+        hass.data[DOMAIN].pop(entry.unique_id)
+
+    _LOGGER.debug("Remaining data for vaillant %s", hass.data[DOMAIN])
+
+    if (
+        len(hass.data[DOMAIN]) == 1
+        and hass.data[DOMAIN].get(SERVICES_HANDLER, None) is not None
+    ):
+        await async_unload_services(hass)
+        hass.data[DOMAIN].pop(SERVICES_HANDLER)
 
     return unload_ok

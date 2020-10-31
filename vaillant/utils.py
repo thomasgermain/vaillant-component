@@ -3,9 +3,16 @@ from datetime import timedelta
 
 from pymultimatic.model import OperatingModes
 
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.util import dt
 
-from .const import ATTR_ENDS_AT, ATTR_VAILLANT_MODE, ATTR_VAILLANT_SETTING
+from .const import (
+    ATTR_ENDS_AT,
+    ATTR_VAILLANT_MODE,
+    ATTR_VAILLANT_SETTING,
+    DEFAULT_SCAN_INTERVAL,
+)
 
 
 def gen_state_attrs(component, active_mode):
@@ -20,6 +27,13 @@ def gen_state_attrs(component, active_mode):
         if qveto_end:
             attrs.update({ATTR_ENDS_AT: qveto_end.isoformat()})
     return attrs
+
+
+def get_scan_interval(entry: ConfigEntry):
+    """Get option scan interval or default."""
+    return timedelta(
+        minutes=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    )
 
 
 def _get_quick_veto_end(component):

@@ -27,8 +27,9 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.util import slugify
 
 from . import ApiHub
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN as VAILLANT
+from .const import DOMAIN as VAILLANT, HUB, REMOVE_ERROR_HANDLER
 from .entities import VaillantEntity
+from .utils import get_scan_interval
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the Vaillant binary sensor platform."""
     sensors = []
-    hub: ApiHub = hass.data[VAILLANT]
+    hub: ApiHub = hass.data[VAILLANT][entry.unique_id][HUB]
     if hub.system:
         if hub.system.dhw and hub.system.dhw.circulation:
             sensors.append(CirculationSensor(hub))
@@ -64,7 +65,10 @@ async def async_setup_entry(hass, entry, async_add_entities):
         sensors.append(entity)
 
         handler = SystemErrorHandler(hub, hass, async_add_entities)
-        async_track_time_interval(hass, handler.update, DEFAULT_SCAN_INTERVAL)
+        remove_handler = async_track_time_interval(
+            hass, handler.update, get_scan_interval(entry)
+        )
+        hass.data[VAILLANT][entry.unique_id][REMOVE_ERROR_HANDLER] = remove_handler
         await handler.update(None)
 
     _LOGGER.info("Adding %s binary sensor entities", len(sensors))
@@ -106,8 +110,8 @@ class CirculationSensor(VaillantEntity, BinarySensorEntity):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        self._circulation = self.hub.system.dhw.circulation
-        self._active_mode = self.hub.system.get_active_mode_circulation()
+        self._circulation = self.coordinator.system.dhw.circulation
+        self._active_mode = self.coordinator.system.get_active_mode_circulation()
 
 
 class RoomWindow(VaillantEntity, BinarySensorEntity):
@@ -130,7 +134,7 @@ class RoomWindow(VaillantEntity, BinarySensorEntity):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        new_room: Room = self.hub.find_component(self._room)
+        new_room: Room = self.coordinator.find_component(self._room)
 
         if new_room:
             _LOGGER.debug(
@@ -186,7 +190,7 @@ class RoomDeviceEntity(VaillantEntity, BinarySensorEntity):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        new_room: Room = self.hub.find_component(self.room)
+        new_room: Room = self.coordinator.find_component(self.room)
         new_device: Device = self._find_device(new_room, self.device.sgtin)
 
         if new_room:
@@ -283,7 +287,7 @@ class VRBoxEntity(VaillantEntity, BinarySensorEntity):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        system_info: SystemInfo = self.hub.system.info
+        system_info: SystemInfo = self.coordinator.system.info
 
         if system_info:
             _LOGGER.debug(
@@ -361,8 +365,8 @@ class BoilerError(VaillantEntity, BinarySensorEntity):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        _LOGGER.debug("new boiler status is %s", self.hub.system.boiler_status)
-        self._boiler_status = self.hub.system.boiler_status
+        _LOGGER.debug("new boiler status is %s", self.coordinator.system.boiler_status)
+        self._boiler_status = self.coordinator.system.boiler_status
 
     @property
     def device_info(self):
@@ -440,7 +444,7 @@ class VaillantSystemError(VaillantEntity, BinarySensorEntity):
         Special attention during the update, the entity can remove itself
         from registry if the error disappear from vaillant system.
         """
-        errors = {e.status_code: e for e in self.hub.system.errors}
+        errors = {e.status_code: e for e in self.coordinator.system.errors}
 
         if self._error.status_code in [e.status_code for e in list(errors.values())]:
             self._error = errors.get(self._error.status_code)
@@ -488,7 +492,12 @@ class HolidayModeSensor(VaillantEntity, BinarySensorEntity):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        self._holiday = self.hub.system.holiday
+        self._holiday = self.coordinator.system.holiday
+
+    @property
+    def listening(self):
+        """Return whether this entity is listening for system changes or not."""
+        return True
 
 
 class QuickModeSensor(VaillantEntity, BinarySensorEntity):
@@ -515,4 +524,9 @@ class QuickModeSensor(VaillantEntity, BinarySensorEntity):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        self._quick_mode = self.hub.system.quick_mode
+        self._quick_mode = self.coordinator.system.quick_mode
+
+    @property
+    def listening(self):
+        """Return whether this entity is listening for system changes or not."""
+        return True

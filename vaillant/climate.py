@@ -34,10 +34,13 @@ from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE,
 )
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
+from homeassistant.helpers import entity_platform
 
-from . import ApiHub
+from . import SERVICES, ApiHub
 from .const import (
+    DEFAULT_QUICK_VETO_DURATION,
     DOMAIN as VAILLANT,
+    HUB,
     PRESET_COOLING_FOR_X_DAYS,
     PRESET_COOLING_ON,
     PRESET_DAY,
@@ -48,6 +51,7 @@ from .const import (
     PRESET_SYSTEM_OFF,
 )
 from .entities import VaillantEntity
+from .service import SERVICE_REMOVE_QUICK_VETO, SERVICE_SET_QUICK_VETO
 from .utils import gen_state_attrs
 
 _LOGGER = logging.getLogger(__name__)
@@ -62,7 +66,7 @@ _FUNCTION_TO_HVAC_ACTION: Dict[ActiveFunction, str] = {
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the Vaillant climate platform."""
     climates = []
-    hub = hass.data[VAILLANT]
+    hub = hass.data[VAILLANT][entry.unique_id][HUB]
 
     if hub.system:
         if hub.system.zones:
@@ -80,6 +84,19 @@ async def async_setup_entry(hass, entry, async_add_entities):
     _LOGGER.info("Adding %s climate entities", len(climates))
 
     async_add_entities(climates, True)
+
+    platform = entity_platform.current_platform.get()
+    platform.async_register_entity_service(
+        SERVICE_REMOVE_QUICK_VETO,
+        SERVICES[SERVICE_REMOVE_QUICK_VETO]["schema"],
+        SERVICE_REMOVE_QUICK_VETO,
+    )
+    platform.async_register_entity_service(
+        SERVICE_SET_QUICK_VETO,
+        SERVICES[SERVICE_SET_QUICK_VETO]["schema"],
+        SERVICE_SET_QUICK_VETO,
+    )
+
     return True
 
 
@@ -92,6 +109,16 @@ class VaillantClimate(VaillantEntity, ClimateEntity, abc.ABC):
         self._system = None
         self.component = None
         self._refresh(hub.system, component)
+
+    async def set_quick_veto(self, **kwargs):
+        """Set quick veto, called by service."""
+        temperature = kwargs.get("temperature")
+        duration = kwargs.get("duration", DEFAULT_QUICK_VETO_DURATION)
+        await self.coordinator.set_quick_veto(self, temperature, duration)
+
+    async def remove_quick_veto(self, **kwargs):
+        """Remove quick veto, called by service."""
+        await self.coordinator.remove_quick_veto(self)
 
     @property
     @abc.abstractmethod
@@ -176,7 +203,9 @@ class VaillantClimate(VaillantEntity, ClimateEntity, abc.ABC):
 
     async def vaillant_update(self):
         """Update specific for vaillant."""
-        self._refresh(self.hub.system, self.hub.find_component(self.component))
+        self._refresh(
+            self.coordinator.system, self.coordinator.find_component(self.component)
+        )
 
     def _refresh(self, system, component):
         """Refresh the entity."""
@@ -255,14 +284,14 @@ class RoomClimate(VaillantClimate):
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
-        await self.hub.set_room_target_temperature(
+        await self.coordinator.set_room_target_temperature(
             self, float(kwargs.get(ATTR_TEMPERATURE))
         )
 
     async def async_set_hvac_mode(self, hvac_mode: str) -> None:
         """Set new target hvac mode."""
         mode = RoomClimate._HA_MODE_TO_VAILLANT[hvac_mode]
-        await self.hub.set_room_operating_mode(self, mode)
+        await self.coordinator.set_room_operating_mode(self, mode)
 
     @property
     def state_attributes(self) -> Dict[str, Any]:
@@ -292,7 +321,7 @@ class RoomClimate(VaillantClimate):
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
         mode = RoomClimate._HA_PRESET_TO_VAILLANT[preset_mode]
-        await self.hub.set_room_operating_mode(self, mode)
+        await self.coordinator.set_room_operating_mode(self, mode)
 
     @property
     def hvac_action(self) -> Optional[str]:
@@ -419,14 +448,14 @@ class ZoneClimate(VaillantClimate):
 
         if temp and temp != self.active_mode.target:
             _LOGGER.debug("Setting target temp to %s", temp)
-            await self.hub.set_zone_target_temperature(self, temp)
+            await self.coordinator.set_zone_target_temperature(self, temp)
         else:
             _LOGGER.debug("Nothing to do")
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set new target hvac mode."""
         mode = ZoneClimate._HA_MODE_TO_VAILLANT[hvac_mode]
-        await self.hub.set_zone_operating_mode(self, mode)
+        await self.coordinator.set_zone_operating_mode(self, mode)
 
     @property
     def state_attributes(self) -> Dict[str, Any]:
@@ -458,4 +487,4 @@ class ZoneClimate(VaillantClimate):
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
         mode = ZoneClimate._HA_PRESET_TO_VAILLANT[preset_mode]
-        await self.hub.set_zone_operating_mode(self, mode)
+        await self.coordinator.set_zone_operating_mode(self, mode)

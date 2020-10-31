@@ -16,35 +16,60 @@ from pymultimatic.model import (
     ZoneCooling,
     ZoneHeating,
 )
+import pymultimatic.systemmanager
 
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
-from homeassistant.util import Throttle
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
+    CONF_SERIAL_NUMBER,
     DEFAULT_QUICK_VETO_DURATION,
-    DEFAULT_SCAN_INTERVAL,
     DEFAULT_SMART_PHONE_ID,
+    DOMAIN,
+    REFRESH_ENTITIES_EVENT,
 )
+from .utils import get_scan_interval
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ApiHub:
+async def check_authentication(hass, username, password, serial):
+    """Check if provided username an password are corrects."""
+    return await pymultimatic.systemmanager.SystemManager(
+        username,
+        password,
+        async_create_clientsession(hass),
+        DEFAULT_SMART_PHONE_ID,
+        serial,
+    ).login(True)
+
+
+class ApiHub(DataUpdateCoordinator):
     """Vaillant entry point for home-assistant."""
 
-    def __init__(self, hass, username, password, serial):
+    def __init__(self, hass, entry: ConfigEntry):
         """Initialize hub."""
-        # pylint: disable=import-outside-toplevel
-        from pymultimatic.systemmanager import SystemManager
+
+        username = entry.data[CONF_USERNAME]
+        password = entry.data[CONF_PASSWORD]
+        serial = entry.data.get(CONF_SERIAL_NUMBER)
+
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=DOMAIN,
+            update_interval=get_scan_interval(entry),
+            update_method=self._fetch_data,
+        )
 
         session = async_create_clientsession(hass)
-        self._manager = SystemManager(
+        self._manager = pymultimatic.systemmanager.SystemManager(
             username, password, session, DEFAULT_SMART_PHONE_ID, serial
         )
         self.system: System = None
-        self.update_system = Throttle(DEFAULT_SCAN_INTERVAL)(self._update_system)
         self._hass = hass
-        self.entities = []
 
     async def authenticate(self):
         """Try to authenticate to the API."""
@@ -70,12 +95,12 @@ class ApiHub:
                 await self._handle_api_error(err)
                 await self.authenticate()
 
-    async def _update_system(self):
+    async def _fetch_data(self):
         """Fetch vaillant system."""
 
         try:
             self.system = await self._manager.get_system()
-            _LOGGER.debug("update_system successfully fetched")
+            _LOGGER.debug("fetch_data successful")
         except ApiError as err:
             # update_system is called by all entities, if it fails for
             # one entity, it will certainly fail for others.
@@ -289,12 +314,15 @@ class ApiHub:
     async def set_holiday_mode(self, start_date, end_date, temperature):
         """Set holiday mode."""
         await self._manager.set_holiday_mode(start_date, end_date, temperature)
+        self.system.holiday = HolidayMode(True, start_date, end_date, temperature)
         await self._refresh_entities()
 
     async def set_quick_mode(self, mode):
         """Set quick mode (remove previous one)."""
         await self._remove_quick_mode_no_refresh()
-        await self._manager.set_quick_mode(QuickModes.get(mode))
+        qmode = QuickModes.get(mode)
+        await self._manager.set_quick_mode(qmode)
+        self.system.quick_mode = qmode
         await self._refresh_entities()
 
     async def set_quick_veto(self, entity, temperature, duration=None):
@@ -327,13 +355,6 @@ class ApiHub:
             comp.quick_veto = None
             await self._refresh(False, entity)
 
-    def get_entity(self, entity_id):
-        """Get entity owned by this component."""
-        for entity in self.entities:
-            if entity.entity_id == entity_id:
-                return entity
-        return None
-
     async def _remove_quick_mode_no_refresh(self, entity=None):
         removed = False
 
@@ -347,6 +368,7 @@ class ApiHub:
             else:
                 await self._hard_remove_quick_mode()
                 removed = True
+
         return removed
 
     async def _hard_remove_quick_mode(self):
@@ -370,10 +392,8 @@ class ApiHub:
 
     async def _refresh_entities(self):
         """Fetch vaillant data and force refresh of all listening entities."""
-        await self.update_system(no_throttle=True)
-        for entity in self.entities:
-            if entity.listening:
-                entity.async_schedule_update_ha_state(True)
+        # await self.async_refresh()
+        self._hass.bus.async_fire(REFRESH_ENTITIES_EVENT, {})
 
     async def _refresh(self, touch_system, entity):
         if touch_system:

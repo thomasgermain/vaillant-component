@@ -1,5 +1,4 @@
 """Vaillant component constants."""
-from datetime import timedelta
 
 # constants used in hass.data
 DOMAIN = "vaillant"
@@ -22,7 +21,7 @@ PRESET_COOLING_FOR_X_DAYS = "cooling_for_x_days"
 
 # default values for configuration
 DEFAULT_EMPTY = ""
-DEFAULT_SCAN_INTERVAL = timedelta(minutes=2)
+DEFAULT_SCAN_INTERVAL = 2
 DEFAULT_QUICK_VETO_DURATION = 3 * 60
 DEFAULT_SMART_PHONE_ID = "homeassistant"
 
@@ -44,3 +43,9 @@ ATTR_START_DATE = "start_date"
 ATTR_END_DATE = "end_date"
 ATTR_TEMPERATURE = "temperature"
 ATTR_DURATION = "duration"
+
+SERVICES_HANDLER = "services_handler"
+REMOVE_ERROR_HANDLER = "remove_error_handler"
+HUB = "hub"
+
+REFRESH_ENTITIES_EVENT = "vaillant_refresh_entities"
