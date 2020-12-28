@@ -70,11 +70,21 @@ You can use something like this as automation:
 - Add a scan interval option
 - Fix error when a live report is not in the API anymore.
 - Adding fan support
+- You may sometimes see (around 3:30 am) an error like the following. It seems the API server is restarted every night, so the integration can't fetch data
+```
+Unable to fetch data from multimatic, API says:`xxx Service Unavailable, status: xxx
+```
+
+### [1.5.0b2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b2)
+- Add `multimatic` in unique_id in order to avoid collision
+- Add `multimatic` for entity `quick_mode`, `holiday`, `system_online` and `system_update`
+- Add fan entity
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`
 - 1 climate entity per zone (expect if the zone is controlled by room) `climate.<zone id>`
 - 1 climate entity per room `climate.<room name>`
+- 1 fan entity `fan.<ventilation_id>` 
 - 1 binary_sensor entity `binary_sensor.control_dhw` reflecting if the circulation is on or off
 - 1 binary_sensor entity `climate.<room name>_window` per room reflecting the state of the "open window" in a room (this is a feature of the multimatic API, if the temperature is going down pretty fast, the API assumes there is an open window and heating stops)
 - 1 binary_sensor entity `climate.<sgtin>_lock`per device reflecting if valves are "child locked" or not

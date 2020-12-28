@@ -6,7 +6,7 @@ HUB = "hub"
 ENTITIES = "entities"
 
 # list of platforms into entity are created
-PLATFORMS = ["binary_sensor", "sensor", "water_heater", "climate"]
+PLATFORMS = ["binary_sensor", "sensor", "water_heater", "climate", "fan"]
 
 # climate custom presets
 PRESET_DAY = "day"

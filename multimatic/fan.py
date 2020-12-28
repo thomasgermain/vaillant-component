@@ -39,6 +39,7 @@ class MultimaticFan(MultimaticEntity, FanEntity):
             False,
         )
         self._speed_list = [
+            OperatingModes.AUTO.name,
             OperatingModes.OFF.name,
             OperatingModes.DAY.name,
             OperatingModes.NIGHT.name,

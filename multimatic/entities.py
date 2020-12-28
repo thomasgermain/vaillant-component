@@ -7,7 +7,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import slugify
 
 from . import ApiHub
-from .const import REFRESH_ENTITIES_EVENT
+from .const import DOMAIN as MULTIMATIC, REFRESH_ENTITIES_EVENT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,12 +23,14 @@ class MultimaticEntity(CoordinatorEntity, ABC):
         self._device_class = dev_class
         if dev_class and class_id:
             id_format = domain + "._{}_" + dev_class
+            unique_id_format = domain + "._" + MULTIMATIC + "_{}_" + dev_class
         else:
             id_format = domain + "._{}"
+            unique_id_format = domain + "._" + MULTIMATIC + "_{}"
 
         self.entity_id = id_format.format(slugify(device_id)).lower()
+        self._unique_id = unique_id_format.format(slugify(device_id)).lower()
         self._entity_name = name
-        self._unique_id = self.entity_id
         self._remove_listener = None
 
     @property
