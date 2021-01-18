@@ -58,6 +58,9 @@ You can use something like this as automation:
 - Supporting cooling
 - **BREAKING CHANGES** on vaillant mode <> hvac mode & preset mode, please see `Expected behavior` below
 
+### [1.4.1b1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.4.1b1)
+- Allow integration to be added multiple times by adding serial number to device_info identifiers and entity_id, when serial number is specified.
+
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
