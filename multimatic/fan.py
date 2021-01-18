@@ -79,7 +79,10 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     @property
     def speed_list(self) -> list:
         """Get the list of available speeds."""
-        if self.coordinator.system.get_active_mode_ventilation().current == QuickModes.VENTILATION_BOOST:
+        if (
+            self.coordinator.system.get_active_mode_ventilation().current
+            == QuickModes.VENTILATION_BOOST
+        ):
             return self._speed_list + [QuickModes.VENTILATION_BOOST.name]
         return self._speed_list
 
