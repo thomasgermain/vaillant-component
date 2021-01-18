@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Optional
 
-from pymultimatic.model import OperatingModes
+from pymultimatic.model import OperatingModes, QuickModes
 
 from homeassistant.components.fan import DOMAIN, SUPPORT_SET_SPEED, FanEntity
 
@@ -40,7 +40,6 @@ class MultimaticFan(MultimaticEntity, FanEntity):
         )
         self._speed_list = [
             OperatingModes.AUTO.name,
-            OperatingModes.OFF.name,
             OperatingModes.DAY.name,
             OperatingModes.NIGHT.name,
         ]
@@ -52,25 +51,24 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     async def async_set_speed(self, speed: str):
         """Set the speed of the fan."""
         return await self.coordinator.set_fan_operating_mode(
-            OperatingModes.get(speed.upper())
+            self, OperatingModes.get(speed.upper())
         )
 
     async def async_turn_on(self, speed: Optional[str] = None, **kwargs):
         """Turn on the fan."""
-        return await self.coordinator.set_fan_operating_mode(
-            OperatingModes.get(speed.upper())
-        )
+        mode = OperatingModes.get(speed.upper()) if speed else OperatingModes.AUTO
+        return await self.coordinator.set_fan_operating_mode(self, mode)
 
     async def async_turn_off(self, **kwargs: Any):
         """Turn on the fan."""
-        return await self.coordinator.set_fan_operating_mode(OperatingModes.OFF)
+        return await self.coordinator.set_fan_operating_mode(self, OperatingModes.NIGHT)
 
     @property
     def is_on(self):
         """Return true if the entity is on."""
         return (
             self.coordinator.system.get_active_mode_ventilation().current
-            != OperatingModes.OFF
+            != OperatingModes.NIGHT
         )
 
     @property
@@ -81,6 +79,8 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     @property
     def speed_list(self) -> list:
         """Get the list of available speeds."""
+        if self.coordinator.system.get_active_mode_ventilation().current == QuickModes.VENTILATION_BOOST:
+            return self._speed_list + [QuickModes.VENTILATION_BOOST.name]
         return self._speed_list
 
     @property

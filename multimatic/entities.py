@@ -22,11 +22,11 @@ class MultimaticEntity(CoordinatorEntity, ABC):
         super().__init__(hub)
         self._device_class = dev_class
         if dev_class and class_id:
-            id_format = domain + "._{}_" + dev_class
-            unique_id_format = domain + "._" + MULTIMATIC + "_{}_" + dev_class
+            id_format = domain + ".{}_" + dev_class
+            unique_id_format = domain + "." + MULTIMATIC + "_{}_" + dev_class
         else:
-            id_format = domain + "._{}"
-            unique_id_format = domain + "._" + MULTIMATIC + "_{}"
+            id_format = domain + ".{}"
+            unique_id_format = domain + "." + MULTIMATIC + "_{}"
 
         self.entity_id = id_format.format(slugify(device_id)).lower()
         self._unique_id = unique_id_format.format(slugify(device_id)).lower()

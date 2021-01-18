@@ -80,6 +80,13 @@ Unable to fetch data from multimatic, API says:`xxx Service Unavailable, status:
 - Add `multimatic` for entity `quick_mode`, `holiday`, `system_online` and `system_update`
 - Add fan entity
 
+### [1.5.0b3](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b3)
+- bugfixes for fan entity
+
+### [1.5.0b4](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b4)
+- bugfixes for fan support
+- add `async_turn_off` and `async_turn_on` for `water_heater`
+
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`
 - 1 climate entity per zone (expect if the zone is controlled by room) `climate.<zone id>`
