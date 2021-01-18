@@ -20,12 +20,16 @@ class VaillantEntity(Entity, ABC):
     ):
         """Initialize entity."""
         self._device_class = dev_class
-        if dev_class and class_id:
-            id_format = domain + "." + DOMAIN + "_{}_" + dev_class
-        else:
-            id_format = domain + "." + DOMAIN + "_{}"
+        temp_id = domain + "." + DOMAIN + "_"
+        if hub.serial:
+            temp_id += hub.serial + "_"
 
-        self.entity_id = id_format.format(slugify(device_id)).lower()
+        temp_id += slugify(device_id)
+
+        if dev_class and class_id:
+            temp_id += "_" + dev_class
+
+        self.entity_id = temp_id.lower()
         self._vaillant_name = name
         self.hub = hub
         self._unique_id = self.entity_id

@@ -41,6 +41,7 @@ class ApiHub:
         self._manager = SystemManager(
             username, password, session, DEFAULT_SMART_PHONE_ID, serial
         )
+        self.serial = serial
         self.system: System = None
         self.update_system = Throttle(DEFAULT_SCAN_INTERVAL)(self._update_system)
         self._hass = hass

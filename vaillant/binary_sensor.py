@@ -369,7 +369,7 @@ class BoilerError(VaillantEntity, BinarySensorEntity):
         """Return device specific attributes."""
         if self._boiler_status is not None:
             return {
-                "identifiers": {(VAILLANT, self._boiler_id)},
+                "identifiers": {(VAILLANT, self._boiler_id, self.hub.serial)},
                 "name": self._boiler_status.device_name,
                 "manufacturer": "Vaillant",
                 "model": self._boiler_status.device_name,
