@@ -21,15 +21,23 @@ class MultimaticEntity(CoordinatorEntity, ABC):
         """Initialize entity."""
         super().__init__(hub)
         self._device_class = dev_class
-        if dev_class and class_id:
-            id_format = domain + ".{}_" + dev_class
-            unique_id_format = domain + "." + MULTIMATIC + "_{}_" + dev_class
-        else:
-            id_format = domain + ".{}"
-            unique_id_format = domain + "." + MULTIMATIC + "_{}"
 
-        self.entity_id = id_format.format(slugify(device_id)).lower()
-        self._unique_id = unique_id_format.format(slugify(device_id)).lower()
+        temp_id = domain + "."
+        self._unique_id = domain + "." + MULTIMATIC + "_"
+        if hub.serial:
+            temp_id += hub.serial + "_"
+            self._unique_id += hub.serial + "_"
+
+        temp_id += slugify(device_id)
+        self._unique_id += slugify(device_id)
+
+        if dev_class and class_id:
+            temp_id += "_" + dev_class
+            self._unique_id += "_" + dev_class
+
+        self.entity_id = temp_id.lower()
+        self._unique_id.lower()
+
         self._entity_name = name
         self._remove_listener = None
 

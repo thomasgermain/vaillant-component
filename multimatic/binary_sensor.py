@@ -374,7 +374,7 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
         """Return device specific attributes."""
         if self._boiler_status is not None:
             return {
-                "identifiers": {(MULTIMATIC, self._boiler_id)},
+                "identifiers": {(MULTIMATIC, self._boiler_id, self.coordinator.serial)},
                 "name": self._boiler_status.device_name,
                 "manufacturer": "Vaillant",
                 "model": self._boiler_status.device_name,

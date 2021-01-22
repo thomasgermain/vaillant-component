@@ -118,7 +118,9 @@ class ReportSensor(MultimaticEntity):
         """Return device specific attributes."""
         if self.report is not None:
             return {
-                "identifiers": {(DOMAIN, self.report.device_id)},
+                "identifiers": {
+                    (DOMAIN, self.report.device_id, self.coordinator.serial)
+                },
                 "name": self.report.device_name,
                 "manufacturer": "Vaillant",
             }

@@ -69,6 +69,8 @@ class ApiHub(DataUpdateCoordinator):
         self._manager = pymultimatic.systemmanager.SystemManager(
             username, password, session, DEFAULT_SMART_PHONE_ID, serial
         )
+
+        self.serial: str = serial
         self.system: System = None
         self._hass = hass
 
