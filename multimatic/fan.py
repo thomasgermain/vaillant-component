@@ -1,11 +1,16 @@
 """Interfaces with Multimatic fan."""
 
 import logging
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from pymultimatic.model import OperatingModes, QuickModes
 
-from homeassistant.components.fan import DOMAIN, SUPPORT_SET_SPEED, FanEntity
+from homeassistant.components.fan import (
+    DOMAIN,
+    SUPPORT_PRESET_MODE,
+    SUPPORT_SET_SPEED,
+    FanEntity,
+)
 
 from . import ApiHub
 from .const import DOMAIN as MULTIMATIC, HUB
@@ -29,6 +34,7 @@ class MultimaticFan(MultimaticEntity, FanEntity):
 
     def __init__(self, hub: ApiHub):
         """Initialize entity."""
+
         self.component = hub.system.ventilation
         super().__init__(
             hub,
@@ -38,7 +44,8 @@ class MultimaticFan(MultimaticEntity, FanEntity):
             None,
             False,
         )
-        self._speed_list = [
+
+        self._preset_modes = [
             OperatingModes.AUTO.name,
             OperatingModes.DAY.name,
             OperatingModes.NIGHT.name,
@@ -48,15 +55,30 @@ class MultimaticFan(MultimaticEntity, FanEntity):
         """Update specific for multimatic."""
         self.component = self.coordinator.system.ventilation
 
-    async def async_set_speed(self, speed: str):
-        """Set the speed of the fan."""
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set new preset mode."""
         return await self.coordinator.set_fan_operating_mode(
-            self, OperatingModes.get(speed.upper())
+            self, OperatingModes.get(preset_mode.upper())
         )
 
-    async def async_turn_on(self, speed: Optional[str] = None, **kwargs):
+    async def async_set_speed(self, speed: str):
+        """Set the speed of the fan."""
+        return await self.async_set_preset_mode(speed)
+
+    async def async_turn_on(
+        self,
+        speed: Optional[str] = None,
+        percentage: Optional[int] = None,
+        preset_mode: Optional[str] = None,
+        **kwargs,
+    ) -> None:
         """Turn on the fan."""
-        mode = OperatingModes.get(speed.upper()) if speed else OperatingModes.AUTO
+        if preset_mode:
+            mode = OperatingModes.get(preset_mode.upper())
+        elif speed:
+            mode = OperatingModes.get(speed.upper())
+        else:
+            mode = OperatingModes.AUTO
         return await self.coordinator.set_fan_operating_mode(self, mode)
 
     async def async_turn_off(self, **kwargs: Any):
@@ -74,19 +96,40 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     @property
     def supported_features(self) -> int:
         """Flag supported features."""
-        return SUPPORT_SET_SPEED
+        return SUPPORT_SET_SPEED | SUPPORT_PRESET_MODE
 
     @property
-    def speed_list(self) -> list:
-        """Get the list of available speeds."""
+    def preset_mode(self) -> Optional[str]:
+        """Return the current preset mode, e.g., auto, smart, interval, favorite.
+
+        Requires SUPPORT_SET_SPEED.
+        """
+        return self.coordinator.system.get_active_mode_ventilation().current.name
+
+    @property
+    def preset_modes(self) -> Optional[List[str]]:
+        """Return a list of available preset modes.
+
+        Requires SUPPORT_SET_SPEED.
+        """
         if (
             self.coordinator.system.get_active_mode_ventilation().current
             == QuickModes.VENTILATION_BOOST
         ):
-            return self._speed_list + [QuickModes.VENTILATION_BOOST.name]
-        return self._speed_list
+            return self._preset_modes + [QuickModes.VENTILATION_BOOST.name]
+        return self._preset_modes
+
+    @property
+    def speed_list(self) -> list:
+        """Get the list of available speeds."""
+        return self.preset_modes
 
     @property
     def speed(self) -> Optional[str]:
         """Return the current speed."""
-        return self.coordinator.system.get_active_mode_ventilation().current.name
+        return self.preset_mode
+
+    @property
+    def percentage(self) -> Optional[int]:
+        """Return the current speed as a percentage."""
+        return None
