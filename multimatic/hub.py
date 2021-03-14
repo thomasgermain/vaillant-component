@@ -47,7 +47,7 @@ async def check_authentication(hass, username, password, serial):
     ).login(True)
 
 
-class ApiHub(DataUpdateCoordinator):
+class ApiHub(DataUpdateCoordinator[System]):
     """multimatic entry point for home-assistant."""
 
     def __init__(self, hass, entry: ConfigEntry):
@@ -71,8 +71,6 @@ class ApiHub(DataUpdateCoordinator):
         )
 
         self.serial: str = serial
-        self.system: System = None
-        self._hass = hass
 
     async def authenticate(self):
         """Try to authenticate to the API."""
@@ -102,8 +100,9 @@ class ApiHub(DataUpdateCoordinator):
         """Fetch multimatic system."""
 
         try:
-            self.system = await self._manager.get_system()
+            system = await self._manager.get_system()
             _LOGGER.debug("fetch_data successful")
+            return system
         except ApiError as err:
             auth_ok = False
             try:
@@ -134,22 +133,19 @@ class ApiHub(DataUpdateCoordinator):
         """Find a component in the system with the given id, no IO is done."""
 
         if isinstance(comp, Zone):
-            for zone in self.system.zones:
+            for zone in self.data.zones:
                 if zone.id == comp.id:
                     return zone
         if isinstance(comp, Room):
-            for room in self.system.rooms:
+            for room in self.data.rooms:
                 if room.id == comp.id:
                     return room
         if isinstance(comp, HotWater):
-            if self.system.dhw.hotwater and self.system.dhw.hotwater.id == comp.id:
-                return self.system.dhw.hotwater
+            if self.data.dhw.hotwater and self.data.dhw.hotwater.id == comp.id:
+                return self.data.dhw.hotwater
         if isinstance(comp, Circulation):
-            if (
-                self.system.dhw.circulation
-                and self.system.dhw.circulation.id == comp.id
-            ):
-                return self.system.dhw.circulation
+            if self.data.dhw.circulation and self.data.dhw.circulation.id == comp.id:
+                return self.data.dhw.circulation
 
         return None
 
@@ -168,7 +164,7 @@ class ApiHub(DataUpdateCoordinator):
 
         touch_system = await self._remove_quick_mode_or_holiday(entity)
 
-        current_mode = self.system.get_active_mode_hot_water(hotwater).current
+        current_mode = self.data.get_active_mode_hot_water(hotwater).current
 
         if current_mode == OperatingModes.OFF or touch_system:
             await self._manager.set_hot_water_operating_mode(
@@ -176,7 +172,7 @@ class ApiHub(DataUpdateCoordinator):
             )
         await self._manager.set_hot_water_setpoint_temperature(hotwater.id, target_temp)
 
-        self.system.hot_water = hotwater
+        self.data.hot_water = hotwater
         await self._refresh(touch_system, entity)
 
     async def set_room_target_temperature(self, entity, target_temp):
@@ -193,7 +189,7 @@ class ApiHub(DataUpdateCoordinator):
         touch_system = await self._remove_quick_mode_or_holiday(entity)
 
         room = entity.component
-        current_mode = self.system.get_active_mode_room(room).current
+        current_mode = self.data.get_active_mode_room(room).current
 
         if current_mode == OperatingModes.MANUAL:
             await self._manager.set_room_setpoint_temperature(room.id, target_temp)
@@ -205,7 +201,7 @@ class ApiHub(DataUpdateCoordinator):
             qveto = QuickVeto(DEFAULT_QUICK_VETO_DURATION, target_temp)
             await self._manager.set_room_quick_veto(room.id, qveto)
             room.quick_veto = qveto
-        self.system.set_room(room.id, room)
+        self.data.set_room(room.id, room)
 
         await self._refresh(touch_system, entity)
 
@@ -223,7 +219,7 @@ class ApiHub(DataUpdateCoordinator):
 
         touch_system = await self._remove_quick_mode_or_holiday(entity)
         zone = entity.component
-        current_mode = self.system.get_active_mode_zone(zone).current
+        current_mode = self.data.get_active_mode_zone(zone).current
 
         if current_mode == OperatingModes.QUICK_VETO:
             await self._manager.remove_zone_quick_veto(zone.id)
@@ -232,7 +228,7 @@ class ApiHub(DataUpdateCoordinator):
         await self._manager.set_zone_quick_veto(zone.id, veto)
         zone.quick_veto = veto
 
-        self.system.set_zone(zone.id, zone)
+        self.data.set_zone(zone.id, zone)
         await self._refresh(touch_system, entity)
 
     async def set_hot_water_operating_mode(self, entity, mode):
@@ -247,7 +243,7 @@ class ApiHub(DataUpdateCoordinator):
         await self._manager.set_hot_water_operating_mode(hotwater.id, mode)
         hotwater.operating_mode = mode
 
-        self.system.dhw.hotwater = hotwater
+        self.data.dhw.hotwater = hotwater
         await self._refresh(touch_system, entity)
 
     async def set_room_operating_mode(self, entity, mode):
@@ -264,13 +260,13 @@ class ApiHub(DataUpdateCoordinator):
 
         if isinstance(mode, QuickMode):
             await self._manager.set_quick_mode(mode)
-            self.system.quick_mode = mode
+            self.data.quick_mode = mode
             touch_system = True
         else:
             await self._manager.set_room_operating_mode(room.id, mode)
             room.operating_mode = mode
 
-        self.system.set_room(room.id, room)
+        self.data.set_room(room.id, room)
         await self._refresh(touch_system, entity)
 
     async def set_zone_operating_mode(self, entity, mode):
@@ -288,7 +284,7 @@ class ApiHub(DataUpdateCoordinator):
 
         if isinstance(mode, QuickMode):
             await self._manager.set_quick_mode(mode)
-            self.system.quick_mode = mode
+            self.data.quick_mode = mode
             touch_system = True
         else:
             if zone.heating and mode in ZoneHeating.MODES:
@@ -298,7 +294,7 @@ class ApiHub(DataUpdateCoordinator):
                 await self._manager.set_zone_cooling_operating_mode(zone.id, mode)
                 zone.cooling.operating_mode = mode
 
-        self.system.set_zone(zone.id, zone)
+        self.data.set_zone(zone.id, zone)
         await self._refresh(touch_system, entity)
 
     async def remove_quick_mode(self, entity=None):
@@ -318,7 +314,7 @@ class ApiHub(DataUpdateCoordinator):
     async def set_holiday_mode(self, start_date, end_date, temperature):
         """Set holiday mode."""
         await self._manager.set_holiday_mode(start_date, end_date, temperature)
-        self.system.holiday = HolidayMode(True, start_date, end_date, temperature)
+        self.data.holiday = HolidayMode(True, start_date, end_date, temperature)
         await self._refresh_entities()
 
     async def set_quick_mode(self, mode):
@@ -326,7 +322,7 @@ class ApiHub(DataUpdateCoordinator):
         await self._remove_quick_mode_no_refresh()
         qmode = QuickModes.get(mode)
         await self._manager.set_quick_mode(qmode)
-        self.system.quick_mode = qmode
+        self.data.quick_mode = qmode
         await self._refresh_entities()
 
     async def set_quick_veto(self, entity, temperature, duration=None):
@@ -366,20 +362,20 @@ class ApiHub(DataUpdateCoordinator):
 
         if isinstance(mode, QuickMode):
             await self._manager.set_quick_mode(mode)
-            self.system.quick_mode = mode
+            self.data.quick_mode = mode
             touch_system = True
         else:
             await self._manager.set_ventilation_operating_mode(
-                self.system.ventilation.id, mode
+                self.data.ventilation.id, mode
             )
-            self.system.ventilation.operating_mode = mode
+            self.data.ventilation.operating_mode = mode
         await self._refresh(touch_system, entity)
 
     async def _remove_quick_mode_no_refresh(self, entity=None):
         removed = False
 
-        if self.system.quick_mode is not None:
-            qmode = self.system.quick_mode
+        if self.data.quick_mode is not None:
+            qmode = self.data.quick_mode
 
             if entity:
                 if qmode.is_for(entity.component):
@@ -393,15 +389,15 @@ class ApiHub(DataUpdateCoordinator):
 
     async def _hard_remove_quick_mode(self):
         await self._manager.remove_quick_mode()
-        self.system.quick_mode = None
+        self.data.quick_mode = None
 
     async def _remove_holiday_mode_no_refresh(self):
         removed = False
 
-        if self.system.holiday is not None and self.system.holiday.is_applied:
+        if self.data.holiday is not None and self.data.holiday.is_applied:
             removed = True
             await self._manager.remove_holiday_mode()
-            self.system.holiday = HolidayMode(False)
+            self.data.holiday = HolidayMode(False)
         return removed
 
     async def _remove_quick_mode_or_holiday(self, entity):
@@ -412,7 +408,7 @@ class ApiHub(DataUpdateCoordinator):
 
     async def _refresh_entities(self):
         """Fetch multimatic data and force refresh of all listening entities."""
-        self._hass.bus.async_fire(REFRESH_ENTITIES_EVENT, {})
+        self.hass.bus.async_fire(REFRESH_ENTITIES_EVENT, {})
 
     async def _refresh(self, touch_system, entity):
         if touch_system:

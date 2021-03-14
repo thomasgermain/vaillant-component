@@ -86,8 +86,15 @@ Unable to fetch data from multimatic, API says:`xxx Service Unavailable, status:
 ### [1.5.0b4](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b4)
 - allow multiple integration fixes
 
-### [1.5.0b5](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b4)
+### [1.5.0b5](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b5)
 - Fan for HA > 2021.3.x
+
+### [1.5.0b6](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b6)
+- Many technical improvements
+- Remove speed from fan entity
+- add `version` in the manifest
+- Bugfix for room climate to detect if the room is heating or not
+
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`

@@ -38,12 +38,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
     hub = hass.data[MULTIMATIC][entry.unique_id][HUB]
 
-    if hub.system and hub.system.dhw and hub.system.dhw.hotwater:
+    if hub.data and hub.data.dhw and hub.data.dhw.hotwater:
         entity = MultimaticWaterHeater(hub)
         entities.append(entity)
 
-    _LOGGER.info("Added water heater? %s", len(entities) > 0)
-    async_add_entities(entities, True)
+    async_add_entities(entities)
     return True
 
 
@@ -52,9 +51,9 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
 
     def __init__(self, hub: ApiHub):
         """Initialize entity."""
-        self._hotwater = hub.system.dhw.hotwater
-        super().__init__(hub, DOMAIN, self._hotwater.id, self._hotwater.name)
-        self._active_mode = None
+        super().__init__(
+            hub, DOMAIN, hub.data.dhw.hotwater.id, hub.data.dhw.hotwater.name
+        )
         self._operations = {mode.name: mode for mode in HotWater.MODES}
 
     @property
@@ -65,7 +64,12 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     @property
     def component(self):
         """Return multimatic component."""
-        return self._hotwater
+        return self.coordinator.data.dhw.hotwater
+
+    @property
+    def active_mode(self):
+        """Return multimatic component's active mode."""
+        return self.coordinator.data.get_active_mode_hot_water()
 
     @property
     def supported_features(self):
@@ -92,14 +96,14 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
         is off, but it means the user will be able to change the target
          temperature only when the heater is ON (which seems odd to me)
         """
-        if self._active_mode.current != QuickModes.HOLIDAY:
+        if self.active_mode != QuickModes.HOLIDAY:
             return SUPPORTED_FLAGS
         return 0
 
     @property
     def available(self):
         """Return True if entity is available."""
-        return self._hotwater is not None
+        return super().available and self.component is not None
 
     @property
     def temperature_unit(self):
@@ -113,20 +117,18 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
         Adding current temperature
         """
         attrs = super().state_attributes
-        attrs.update(gen_state_attrs(self.component, self._active_mode))
+        attrs.update(gen_state_attrs(self.component, self.active_mode))
         return attrs
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        _LOGGER.debug("target temperature is %s", self._active_mode.target)
-        return self._active_mode.target
+        return self.active_mode.target
 
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        _LOGGER.debug("current temperature is %s", self._hotwater.temperature)
-        return self._hotwater.temperature
+        return self.component.temperature
 
     @property
     def min_temp(self):
@@ -141,36 +143,32 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     @property
     def current_operation(self):
         """Return current operation ie. eco, electric, performance, ..."""
-        _LOGGER.debug("current_operation is %s", self._active_mode.current)
-        return self._active_mode.current.name
+        return self.active_mode.current.name
 
     @property
     def operation_list(self):
         """Return current operation ie. eco, electric, performance, ..."""
-        if self._active_mode.current != QuickModes.HOLIDAY:
+        if self.active_mode.current != QuickModes.HOLIDAY:
             return list(self._operations.keys())
         return []
 
     @property
     def is_away_mode_on(self):
         """Return true if away mode is on."""
-        return self._active_mode.current in AWAY_MODES
+        return self.active_mode.current in AWAY_MODES
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         target_temp = float(kwargs.get(ATTR_TEMPERATURE))
-        _LOGGER.debug("Trying to set target temp to %s", target_temp)
-        # HUB will call sync update
         await self.coordinator.set_hot_water_target_temperature(self, target_temp)
 
     async def async_set_operation_mode(self, operation_mode):
         """Set new target operation mode."""
-        _LOGGER.debug("Will set new operation_mode %s", operation_mode)
         if operation_mode in self._operations.keys():
             mode = self._operations[operation_mode]
             await self.coordinator.set_hot_water_operating_mode(self, mode)
         else:
-            _LOGGER.debug("Operation mode is unknown")
+            _LOGGER.debug("Operation mode %s is unknown", operation_mode)
 
     async def async_turn_away_mode_on(self):
         """Turn away mode on."""
@@ -179,8 +177,3 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     async def async_turn_away_mode_off(self):
         """Turn away mode off."""
         await self.coordinator.set_hot_water_operating_mode(self, OperatingModes.AUTO)
-
-    async def async_custom_update(self):
-        """Update specific for multimatic."""
-        self._hotwater = self.coordinator.system.dhw.hotwater
-        self._active_mode = self.coordinator.system.get_active_mode_hot_water()

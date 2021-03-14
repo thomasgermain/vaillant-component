@@ -5,12 +5,7 @@ from typing import Any, List, Optional
 
 from pymultimatic.model import OperatingModes, QuickModes
 
-from homeassistant.components.fan import (
-    DOMAIN,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_SET_SPEED,
-    FanEntity,
-)
+from homeassistant.components.fan import DOMAIN, SUPPORT_PRESET_MODE, FanEntity
 
 from . import ApiHub
 from .const import DOMAIN as MULTIMATIC, HUB
@@ -24,9 +19,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     hub: ApiHub = hass.data[MULTIMATIC][entry.unique_id][HUB]
 
-    if hub.system.ventilation:
+    if hub.data.ventilation:
         _LOGGER.debug("Adding fan entity")
-        async_add_entities([MultimaticFan(hub)], True)
+        async_add_entities([MultimaticFan(hub)])
 
 
 class MultimaticFan(MultimaticEntity, FanEntity):
@@ -35,12 +30,11 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     def __init__(self, hub: ApiHub):
         """Initialize entity."""
 
-        self.component = hub.system.ventilation
         super().__init__(
             hub,
             DOMAIN,
-            self.component.id,
-            self.component.name,
+            hub.data.ventilation.id,
+            hub.data.ventilation.name,
             None,
             False,
         )
@@ -51,19 +45,16 @@ class MultimaticFan(MultimaticEntity, FanEntity):
             OperatingModes.NIGHT.name,
         ]
 
-    async def async_custom_update(self):
-        """Update specific for multimatic."""
-        self.component = self.coordinator.system.ventilation
+    @property
+    def component(self):
+        """Return the ventilation."""
+        return self.coordinator.data.ventilation
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         return await self.coordinator.set_fan_operating_mode(
             self, OperatingModes.get(preset_mode.upper())
         )
-
-    async def async_set_speed(self, speed: str):
-        """Set the speed of the fan."""
-        return await self.async_set_preset_mode(speed)
 
     async def async_turn_on(
         self,
@@ -89,22 +80,19 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     def is_on(self):
         """Return true if the entity is on."""
         return (
-            self.coordinator.system.get_active_mode_ventilation().current
+            self.coordinator.data.get_active_mode_ventilation().current
             != OperatingModes.NIGHT
         )
 
     @property
     def supported_features(self) -> int:
         """Flag supported features."""
-        return SUPPORT_SET_SPEED | SUPPORT_PRESET_MODE
+        return SUPPORT_PRESET_MODE
 
     @property
     def preset_mode(self) -> Optional[str]:
-        """Return the current preset mode, e.g., auto, smart, interval, favorite.
-
-        Requires SUPPORT_SET_SPEED.
-        """
-        return self.coordinator.system.get_active_mode_ventilation().current.name
+        """Return the current preset mode, e.g., auto, smart, interval, favorite."""
+        return self.coordinator.data.get_active_mode_ventilation().current.name
 
     @property
     def preset_modes(self) -> Optional[List[str]]:
@@ -113,23 +101,13 @@ class MultimaticFan(MultimaticEntity, FanEntity):
         Requires SUPPORT_SET_SPEED.
         """
         if (
-            self.coordinator.system.get_active_mode_ventilation().current
+            self.coordinator.data.get_active_mode_ventilation().current
             == QuickModes.VENTILATION_BOOST
         ):
             return self._preset_modes + [QuickModes.VENTILATION_BOOST.name]
         return self._preset_modes
 
     @property
-    def speed_list(self) -> list:
-        """Get the list of available speeds."""
-        return self.preset_modes
-
-    @property
-    def speed(self) -> Optional[str]:
-        """Return the current speed."""
-        return self.preset_mode
-
-    @property
-    def percentage(self) -> Optional[int]:
-        """Return the current speed as a percentage."""
-        return None
+    def available(self):
+        """Return True if entity is available."""
+        return super().available and self.component is not None

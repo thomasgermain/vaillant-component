@@ -68,22 +68,22 @@ async def async_setup_entry(hass, entry, async_add_entities):
     climates = []
     hub = hass.data[MULTIMATIC][entry.unique_id][HUB]
 
-    if hub.system:
-        if hub.system.zones:
-            for zone in hub.system.zones:
+    if hub.data:
+        if hub.data.zones:
+            for zone in hub.data.zones:
                 if not zone.rbr and zone.enabled:
                     entity = ZoneClimate(hub, zone)
                     climates.append(entity)
 
-        if hub.system.rooms:
-            rbr_zone = [zone for zone in hub.system.zones if zone.rbr][0]
-            for room in hub.system.rooms:
+        if hub.data.rooms:
+            rbr_zone = [zone for zone in hub.data.zones if zone.rbr][0]
+            for room in hub.data.rooms:
                 entity = RoomClimate(hub, room, rbr_zone)
                 climates.append(entity)
 
     _LOGGER.info("Adding %s climate entities", len(climates))
 
-    async_add_entities(climates, True)
+    async_add_entities(climates)
 
     platform = entity_platform.current_platform.get()
     platform.async_register_entity_service(
@@ -106,9 +106,7 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
     def __init__(self, hub: ApiHub, comp_name, comp_id, component: Component):
         """Initialize entity."""
         super().__init__(hub, DOMAIN, comp_id, comp_name)
-        self._system = None
-        self.component = None
-        self._refresh(hub.system, component)
+        self._component = component
 
     async def set_quick_veto(self, **kwargs):
         """Set quick veto, called by service."""
@@ -126,6 +124,11 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
         """Get active mode of the climate."""
 
     @property
+    def component(self):
+        """Return the room or the zone."""
+        return self.coordinator.find_component(self._component)
+
+    @property
     def listening(self):
         """Return whether this entity is listening for system changes or not."""
         return True
@@ -133,7 +136,7 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
     @property
     def available(self):
         """Return True if entity is available."""
-        return self.component is not None
+        return super().available and self.component is not None
 
     @property
     def temperature_unit(self):
@@ -143,7 +146,6 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        _LOGGER.debug("Target temp is %s", self.active_mode.target)
         return self.active_mode.target
 
     @property
@@ -201,17 +203,6 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
         """Return the lowbound target temperature we try to reach."""
         return None
 
-    async def async_custom_update(self):
-        """Update specific for multimatic."""
-        self._refresh(
-            self.coordinator.system, self.coordinator.find_component(self.component)
-        )
-
-    def _refresh(self, system, component):
-        """Refresh the entity."""
-        self._system = system
-        self.component = component
-
 
 class RoomClimate(MultimaticClimate):
     """Climate for a room."""
@@ -246,11 +237,10 @@ class RoomClimate(MultimaticClimate):
     @property
     def hvac_mode(self) -> str:
         """Get the hvac mode based on multimatic mode."""
-        active_mode = self.active_mode
-        hvac_mode = RoomClimate._MULTIMATIC_TO_HA[active_mode.current][0]
+        hvac_mode = RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
         if not hvac_mode:
             if (
-                active_mode.current
+                self.active_mode.current
                 in (OperatingModes.MANUAL, OperatingModes.QUICK_VETO)
                 and self.hvac_action == CURRENT_HVAC_HEAT
             ):
@@ -280,7 +270,12 @@ class RoomClimate(MultimaticClimate):
     @property
     def active_mode(self) -> ActiveMode:
         """Get active mode of the climate."""
-        return self._system.get_active_mode_room(self.component)
+        return self.coordinator.data.get_active_mode_room(self.component)
+
+    @property
+    def zone(self):
+        """Return the zone the current room belongs."""
+        return self.coordinator.find_component(self._zone)
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -330,7 +325,7 @@ class RoomClimate(MultimaticClimate):
         Need to be one of CURRENT_HVAC_*.
         """
         if (
-            self._zone.active_function == ActiveFunction.HEATING
+            self.zone.active_function == ActiveFunction.HEATING
             and self.component.temperature < self.active_mode.target
         ):
             return _FUNCTION_TO_HVAC_ACTION[ActiveFunction.HEATING]
@@ -385,7 +380,7 @@ class ZoneClimate(MultimaticClimate):
             self._supported_presets.remove(PRESET_COOLING_ON)
             self._supported_presets.remove(PRESET_COOLING_FOR_X_DAYS)
 
-        if not hub.system.ventilation:
+        if not hub.data.ventilation:
             self._supported_hvac.remove(HVAC_MODE_FAN_ONLY)
 
     @property
@@ -440,7 +435,7 @@ class ZoneClimate(MultimaticClimate):
     @property
     def active_mode(self) -> ActiveMode:
         """Get active mode of the climate."""
-        return self._system.get_active_mode_zone(self.component)
+        return self.coordinator.data.get_active_mode_zone(self.component)
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""

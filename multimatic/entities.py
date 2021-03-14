@@ -1,5 +1,5 @@
 """Common entities."""
-from abc import ABC, abstractmethod
+from abc import ABC
 import logging
 from typing import Optional
 
@@ -14,6 +14,8 @@ _LOGGER = logging.getLogger(__name__)
 
 class MultimaticEntity(CoordinatorEntity, ABC):
     """Define base class for multimatic entities."""
+
+    coordinator: ApiHub
 
     def __init__(
         self, hub: ApiHub, domain, device_id, name, dev_class=None, class_id=True
@@ -52,24 +54,9 @@ class MultimaticEntity(CoordinatorEntity, ABC):
         return self._unique_id
 
     @property
-    def should_poll(self) -> bool:
-        """Return True if entity has to be polled for state."""
-        return True
-
-    async def async_update(self):
-        """Update the entity."""
-        _LOGGER.debug("Time to update %s", self.entity_id)
-        await super().async_update()
-        await self.async_custom_update()
-
-    @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
         return self._device_class
-
-    @abstractmethod
-    async def async_custom_update(self):
-        """Update specific for multimatic."""
 
     @property
     def listening(self):
