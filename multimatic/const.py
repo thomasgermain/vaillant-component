@@ -33,6 +33,7 @@ MAX_QUICK_VETO_DURATION = 24 * 60
 CONF_QUICK_VETO_DURATION = "quick_veto_duration"
 CONF_SMARTPHONE_ID = "smartphoneid"
 CONF_SERIAL_NUMBER = "serial_number"
+CONF_APPLICATION = "application"
 
 # constants for states_attributes
 ATTR_MULTIMATIC_MODE = "multimatic_mode"

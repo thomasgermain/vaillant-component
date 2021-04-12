@@ -25,6 +25,7 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
+    CONF_APPLICATION,
     CONF_SERIAL_NUMBER,
     DEFAULT_QUICK_VETO_DURATION,
     DEFAULT_SMART_PHONE_ID,
@@ -36,7 +37,7 @@ from .utils import get_scan_interval
 _LOGGER = logging.getLogger(__name__)
 
 
-async def check_authentication(hass, username, password, serial):
+async def check_authentication(hass, username, password, serial, app):
     """Check if provided username an password are corrects."""
     return await pymultimatic.systemmanager.SystemManager(
         username,
@@ -44,6 +45,7 @@ async def check_authentication(hass, username, password, serial):
         async_create_clientsession(hass),
         DEFAULT_SMART_PHONE_ID,
         serial,
+        app,
     ).login(True)
 
 
@@ -56,6 +58,7 @@ class ApiHub(DataUpdateCoordinator[System]):
         username = entry.data[CONF_USERNAME]
         password = entry.data[CONF_PASSWORD]
         serial = entry.data.get(CONF_SERIAL_NUMBER)
+        app = entry.data.get(CONF_APPLICATION)
 
         super().__init__(
             hass,
@@ -67,7 +70,7 @@ class ApiHub(DataUpdateCoordinator[System]):
 
         session = async_create_clientsession(hass)
         self._manager = pymultimatic.systemmanager.SystemManager(
-            username, password, session, DEFAULT_SMART_PHONE_ID, serial
+            username, password, session, DEFAULT_SMART_PHONE_ID, serial, app
         )
 
         self.serial: str = serial

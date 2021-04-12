@@ -2,6 +2,7 @@
 import logging
 
 from pymultimatic.api import ApiError
+from pymultimatic.api.defaults import MULTIMATIC, SENSO
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
@@ -10,6 +11,7 @@ from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 
 from .const import (  # pylint: disable=unused-import
+    CONF_APPLICATION,
     CONF_SERIAL_NUMBER,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -22,6 +24,7 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_APPLICATION, default=MULTIMATIC): vol.In([MULTIMATIC, SENSO]),
         vol.Optional(CONF_SERIAL_NUMBER): str,
     }
 )
@@ -34,16 +37,20 @@ async def validate_input(hass: core.HomeAssistant, data):
     """
 
     await validate_authentication(
-        hass, data[CONF_USERNAME], data[CONF_PASSWORD], data.get(CONF_SERIAL_NUMBER)
+        hass,
+        data[CONF_USERNAME],
+        data[CONF_PASSWORD],
+        data.get(CONF_SERIAL_NUMBER),
+        data.get(CONF_APPLICATION),
     )
 
     return {"title": "Multimatic"}
 
 
-async def validate_authentication(hass, username, password, serial):
+async def validate_authentication(hass, username, password, serial, app):
     """Ensure provided credentials are working."""
     try:
-        if not await check_authentication(hass, username, password, serial):
+        if not await check_authentication(hass, username, password, serial, app):
             raise InvalidAuth
     except ApiError as err:
         resp = await err.response.text()

@@ -4,27 +4,28 @@
     "step": {
       "user": {
         "data": {
-          "password": "Password",
-          "username": "Username",
-          "serial_number": "Serial number"
+          "password": "Mot de passe",
+          "username": "Utilisateur",
+          "application": "Application",
+          "serial_number": "Numéro de série"
         },
-        "title": "Connection information (same as multiMATIC application)"
+        "title": "Identifiant (les même que pour vous identifier à l'application) "
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect, please try again",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
+      "cannot_connect": "Impossible de se connecter",
+      "invalid_auth": "Identifiants incorrects",
+      "unknown": "Erreur inattendue"
     },
     "abort": {
-      "already_configured": "Only one configuration is allowed"
+      "already_configured": "Une seule instance de l'intégration authorisée"
     }
   },
   "options": {
     "step": {
       "init": {
         "data": {
-          "scan_interval": "minutes entre deux scans"
+          "scan_interval": "Minutes entre chaque rafraîchissement"
         }
       }
     }

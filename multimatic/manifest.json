@@ -4,7 +4,7 @@
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/multimatic",
   "requirements": [
-    "pymultimatic==0.3.1"
+    "pymultimatic==0.4.0b0"
   ],
   "ssdp": [],
   "zeroconf": [],
@@ -12,6 +12,5 @@
   "dependencies": [],
   "codeowners": [
     "@thomasgermain"
-  ],
-  "version": "1.5.0"
+  ]
 }
