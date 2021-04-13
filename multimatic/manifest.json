@@ -1,0 +1,17 @@
+{
+  "domain": "multimatic",
+  "name": "Multimatic",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/multimatic",
+  "requirements": [
+    "pymultimatic==0.3.2"
+  ],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": [
+    "@thomasgermain"
+  ],
+    "version": "1.5.0"
+}

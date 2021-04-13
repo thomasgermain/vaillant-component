@@ -1,17 +1,17 @@
-# vaillant-component
+# multimatic-component
 
 **Please note that this component is still in beta test, so I may do (unwanted) breaking changes.**
 
 Ideas are welcome ! Don't hesitate to create issue to suggest something, it will be really appreciated.
 
-Please download the `vaillant` folder and put it inside your `custom_components` folder.
+Please download the `multimatic` folder and put it inside your `custom_components` folder.
 
 You can configure it through the UI using integration.
 You have to provided your username and password (same as multimatic app)
 
 **It is strongly recommended to use a dedicated user for HA**, for 2 reasons:
-- As usual for security reason, if your HA is compromised somehow, you know which user to block
-- I cannot strongly confirm it, but it seems vaillant API only accept the same user to be connected at the same time
+- As usual for security reason, if your HA got compromise somehow, you know which user to block
+- I cannot confirm it, but it seems multimatic API only accept the same user to be connected at the same time
 
 
 ## Releases
@@ -41,13 +41,13 @@ First release using config flow
 If you have any issue with refresh time of the data, you can use an automation to call the service. **I recommend to do it very 1 hour**. If you really hove data refresh issue, you can do down until every 30min. Doing it more often will likely end up in an error at vaillant API. 
 You can use something like this as automation:
 ```yaml
-- id: "Refresh vaillant data"
-  alias: "Refresh vaillant data"
+- id: "Refresh multimatic data"
+  alias: "Refresh multimatic data"
   trigger:
     - platform: time_pattern
       hours: "/1"
   action:
-    - service: vaillant.request_hvac_update
+    - service: multimatic.request_hvac_update
 ```
 ### [1.3.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.1)
 - check if a zone is enabled before creating a climate entity.
@@ -59,52 +59,92 @@ You can use something like this as automation:
 - **BREAKING CHANGES** on vaillant mode <> hvac mode & preset mode, please see `Expected behavior` below
 
 
+### [1.5.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0)
+**BREAKING CHANGES** Foreseen some time for the migration:
+- Renaming integration from `vaillant` to `multimatic`
+- entity_id doesn't contain anymore the domain (e.g: `climate.vaillant_bathroom` becomes `climate.bathroom`). 
+  Only few entities keep  the domain inside their id (`quick_mode`, `holiday`, `system_online`, `system_update` and `errors`),
+  otherwise, the name is too generic
+- Services are also renamed from `vailant.xxx` to `multimatic.xxx`
+- Add `multimatic` in unique_id in order to avoid collision
+- Dynamic errors are removed in favor of a single binary_sensor (`binary_sensor.multimatic_errors`). This is 
+  much easier to create an automation
+
+**Other changes:**
+- Moving to `DataUpdateCoordinator`
+- Allowing multiple instance of the integration
+- IO optimization when quick mode or holiday mode is changing.
+- Add scan interval option
+- Fix error when a live report is not available from the API anymore
+- Add fan support
+- Fix for room climate to detect if the room is heating or not
+- Add `version` in the manifest (for HA 2021.4.x)
+
+**You may sometimes see (around 3:30 am) an error like the following. 
+It seems the API server is restarted every night, so the integration can't fetch data.
+I can't do anything about that.**
+```
+Unable to fetch data from multimatic, API says:`xxx Service Unavailable, status: xxx
+```
+
+**How to migrate ?**
+1) Delete `vaillant` integration from HA UI
+2) Delete `vaillant` folder from `custom_component`
+3) Copy `multimatic` folder (from [1.5.0 release](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0))
+and past it to `custom_component`
+4) Restart HA
+5) Add `multimatic` integration from HA UI
+6) The hard job is starting now, you have to find old entity_id you were using in automation or somewhere else. 
+You can do some find and replace (e.g. `climate.vaillant_bathroom`-> `climate.bathroom`)
+
+
 ## Provided entities
-- 1 water_heater entity, if any water heater: `water_heater.vaillant_<water heater id>`, basically `water_heater.vaillant_control_dhw`
-- 1 climate entity per zone (expect if the zone is controlled by room) `climate.vaillant_<zone id>`
-- 1 climate entity per room `climate.vaillant_<room name>`
-- 1 binary_sensor entity `binary_sensor.vaillant_control_dhw` reflecting if the circulation is on or off
-- 1 binary_sensor entity `climate.vaillant_<room name>_window` per room reflecting the state of the "open window" in a room (this is a feature of the vaillant API, if the temperature is going down pretty fast, the API assumes there is an open window and heating stops)
-- 1 binary_sensor entity `climate.vaillant_<sgtin>_lock`per device reflecting if valves are "child locked" or not
-- 1 binary_sensor entity `binary_sensor.vaillant_<sgtin>_battery` reflecting battery level for each device (VR50, VR51) in the system
-- 1 binary_sensor entity `binary_sensor.vaillant_<sgtin>_battery` reflecting connectivity for each device (VR50, VR51) in the system
-- 1 binary_sensor entity `binary_sensor.vaillant_system_update`to know if there is an update pending
-- 1 binary_sensor entity `binary_sensor.vaillant_system_online` to know if the vr900/920 is connected to the internet
-- 1 binary_sensor entity `binary_sensor.vaillant_<boiler model>` to know if there is an error at the boiler. **Some boiler does not provide this information, so entity won't be available.**
-- 1 temperature sensor `sensor.vaillant_outdoor_temperature` for outdoor temperature
+- 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`
+- 1 climate entity per zone (expect if the zone is controlled by room) `climate.<zone id>`
+- 1 climate entity per room `climate.<room name>`
+- 1 fan entity `fan.<ventilation_id>` 
+- 1 binary_sensor entity `binary_sensor.control_dhw` reflecting if the circulation is on or off
+- 1 binary_sensor entity `climate.<room name>_window` per room reflecting the state of the "open window" in a room (this is a feature of the multimatic API, if the temperature is going down pretty fast, the API assumes there is an open window and heating stops)
+- 1 binary_sensor entity `climate.<sgtin>_lock`per device reflecting if valves are "child locked" or not
+- 1 binary_sensor entity `binary_sensor.<sgtin>_battery` reflecting battery level for each device (VR50, VR51) in the system
+- 1 binary_sensor entity `binary_sensor.<sgtin>_battery` reflecting connectivity for each device (VR50, VR51) in the system
+- 1 binary_sensor entity `binary_sensor.multimtic_system_update`to know if there is an update pending
+- 1 binary_sensor entity `binary_sensor.multimtic_system_online` to know if the vr900/920 is connected to the internet
+- 1 binary_sensor entity `binary_sensor.<boiler model>` to know if there is an error at the boiler. **Some boiler does not provide this information, so entity won't be available.**
+- 1 temperature sensor `sensor.outdoor_temperature` for outdoor temperature
 - 1 sensor for each report in live_report (boiler temperature, boiler water pressure, etc.)
-- 1 binary sensor `binary_sensor.vaillant_quick_mode` to know a quick mode is running on
-- 1 binary sensor ` binary_sensor.vaillant_holiday` to know the holiday mode is on/off
-- dynamic binary sensors if there are extra errors coming from the api.
+- 1 binary sensor `binary_sensor.multimtic_quick_mode` to know a quick mode is running on
+- 1 binary sensor ` binary_sensor.multimtic_holiday` to know the holiday mode is on/off
+- 1 binary sensor `binary_sensor.multimatic_errors`indicating if there are errors coming from the API (if `on`, details are in `state_attributes`)
 
 ## Provided devices
 - 1 device per VR50 or VR51
-- 1 device for the boiler (if supported). Some boiler don't provide enough information to be able to create a device in HA.
+- 1 device for the boiler (if supported). Some boilers don't provide enough information to be able to create a device in HA.
 - 1 device for the gateway (like VR920)
-- 1 "multimatic" (VRC700) device (the water pressure is linked to the VRC 700 inside the vaillant API)
+- 1 "multimatic" (VRC700) device (the water pressure is linked to the VRC 700 inside the multimatic API)
 - hot water circuit
 - heating circuit
 
 
-For the climate and water heater entities, you can also found 
-- the 'real vaillant mode' running on (AUTO, MANUAL, DAY, etc)
+For the climate and water heater entities, you can also find 
+- the 'real multimatic mode' running on (AUTO, MANUAL, DAY, etc)
 
-For the boiler error entity, you can also found 
-- the last update (this is not the last HA update, this is the last time vaillant checks the boiler)
+For the boiler error entity, you can also find 
+- the last update (this is not the last HA update, this is the last time multimatic checks the boiler)
 - the status code (these can be found in your documentation)
-- the title (human readable description of the status code)
+- the title (human-readable description of the status code)
 
-For the `binary_sensor.vaillant_quick_mode`, when on, you have the current quick mode name is available
-For the `binary_sensor.vaillant_holiday`, when on, you have the start date, end date and temperature
+For the `binary_sensor.multimtic_quick_mode`, when on, you have the current quick mode name is available
+For the `binary_sensor.multimtic_holiday`, when on, you have the start date, end date and target temperature
 
 ## Provided services
-- `vaillant.set_holiday_mode` to set the holiday mode (see services in HA ui to get the params)
-- `vaillant.remove_holiday_mode` .. I guess you get it
-- `vaillant.set_quick_mode` to set a quick mode
-- `vaillant.remove_quick_mode` don't tell me you don't get it 
-- `vaillant.set_quick_veto` to set a quick veto for a climate entity
-- `vaillant.remove_quick_veto` to remove a quick veto for a climate entity
-- `vaillant.request_hvac_update` to tell vaillant API to fetch data from your installation and made them available in the API
+- `multimatic.set_holiday_mode` to set the holiday mode (see services in HA ui to get the params)
+- `multimatic.remove_holiday_mode` .. I guess you get it
+- `multimatic.set_quick_mode` to set a quick mode
+- `multimatic.remove_quick_mode` don't tell me you don't get it 
+- `multimatic.set_quick_veto` to set a quick veto for a climate entity
+- `multimatic.remove_quick_veto` to remove a quick veto for a climate entity
+- `multimatic.request_hvac_update` to tell multimatic API to fetch data from your installation and made them available in the API
 
 This will allow you to create some buttons in UI to activate/deactivate quick mode or holiday mode with a single click
 
@@ -142,4 +182,3 @@ Modes mapping:
 - `QM_SYSTEM_OFF` -> `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)
 - `HOLIDAY` -> `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)
 - `QM_COOLING_FOR_X_DAYS` -> no hvac & `PRESET_COOLING_FOR_X_DAYS`
-

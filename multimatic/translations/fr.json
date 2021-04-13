@@ -1,0 +1,33 @@
+{
+  "title": "Multimatic",
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "password": "Mot de passe",
+          "username": "Utilisateur",
+          "application": "Application",
+          "serial_number": "Numéro de série"
+        },
+        "title": "Identifiant (les même que pour vous identifier à l'application) "
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter",
+      "invalid_auth": "Identifiants incorrects",
+      "unknown": "Erreur inattendue"
+    },
+    "abort": {
+      "already_configured": "Une seule instance de l'intégration authorisée"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Minutes entre chaque rafraîchissement"
+        }
+      }
+    }
+  }
+}
