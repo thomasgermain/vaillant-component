@@ -70,7 +70,7 @@ You can use something like this as automation:
 - Dynamic errors are removed in favor of a single binary_sensor (`binary_sensor.multimatic_errors`). This is 
   much easier to create an automation
 
-Other changes:
+**Other changes:**
 - Moving to `DataUpdateCoordinator`
 - Allowing multiple instance of the integration
 - IO optimization when quick mode or holiday mode is changing.
@@ -86,6 +86,16 @@ I can't do anything about that.**
 ```
 Unable to fetch data from multimatic, API says:`xxx Service Unavailable, status: xxx
 ```
+
+**How to migrate ?**
+1) Delete `vaillant` integration from HA UI
+2) Delete `vaillant` folder from `custom_component`
+3) Copy `multimatic` folder (from [1.5.0 release](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0))
+and past it to `custom_component`
+4) Restart HA
+5) Add `multimatic` integration from HA UI
+6) The hard job is starting now, you have to find old entity_id you were using in automation or somewhere else. 
+You can do some find and replace (e.g. `climate.vaillant_bathroom`-> `climate.bathroom`)
 
 
 ## Provided entities
