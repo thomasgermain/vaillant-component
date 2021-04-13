@@ -58,42 +58,34 @@ You can use something like this as automation:
 - Supporting cooling
 - **BREAKING CHANGES** on vaillant mode <> hvac mode & preset mode, please see `Expected behavior` below
 
-### [1.5.0b1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b1)
-- **BREAKING CHANGE**: Renaming `vaillant` to `multimatic`
-- **BREAKING CHANGE**: entity_id doesn't contain the domain anymore (e.g: `climate.vaillant_bathroom` become `climate.bathroom`)
-- **BREAKING CHANGE**: service are renamed from `vaillant.xxx` to `multimatic.xxx`
-- **BREAKING CHANGE**: dynamic errors are removed, it's replaced by only one binary_sensor
+
+### [1.5.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0)
+**BREAKING CHANGES** Foreseen some time for the migration:
+- Renaming integration from `vaillant` to `multimatic`
+- entity_id doesn't contain anymore the domain (e.g: `climate.vaillant_bathroom` becomes `climate.bathroom`). 
+  Only few entities keep  the domain inside their id (`quick_mode`, `holiday`, `system_online`, `system_update` and `errors`),
+  otherwise, the name is too generic
+- Services are also renamed from `vailant.xxx` to `multimatic.xxx`
+- Add `multimatic` in unique_id in order to avoid collision
+- Dynamic errors are removed in favor of a single binary_sensor (`binary_sensor.multimatic_errors`). This is 
+  much easier to create an automation
+
+Other changes:
 - Moving to `DataUpdateCoordinator`
 - Allowing multiple instance of the integration
-- Fire event when quick mode and holiday mode is active (so listening entities are notified) instead of maintaining a list of entities inside the hub.
 - IO optimization when quick mode or holiday mode is changing.
-- Add a scan interval option
-- Fix error when a live report is not in the API anymore.
-- Adding fan support
-- You may sometimes see (around 3:30 am) an error like the following. It seems the API server is restarted every night, so the integration can't fetch data
+- Add scan interval option
+- Fix error when a live report is not available from the API anymore
+- Add fan support
+- Fix for room climate to detect if the room is heating or not
+- Add `version` in the manifest (for HA 2021.4.x)
+
+**You may sometimes see (around 3:30 am) an error like the following. 
+It seems the API server is restarted every night, so the integration can't fetch data.
+I can't do anything about that.**
 ```
 Unable to fetch data from multimatic, API says:`xxx Service Unavailable, status: xxx
 ```
-
-### [1.5.0b2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b2)
-- Add `multimatic` in unique_id in order to avoid collision
-- Add `multimatic` for entity `quick_mode`, `holiday`, `system_online` and `system_update`
-- Add fan entity
-
-### [1.5.0b3](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b3)
-- bugfixes for fan entity
-
-### [1.5.0b4](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b4)
-- allow multiple integration fixes
-
-### [1.5.0b5](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b5)
-- Fan for HA > 2021.3.x
-
-### [1.5.0b6](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0b6)
-- Many technical improvements
-- Remove speed from fan entity
-- add `version` in the manifest
-- Bugfix for room climate to detect if the room is heating or not
 
 
 ## Provided entities
