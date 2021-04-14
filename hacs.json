@@ -1,4 +1,5 @@
 {
   "name": "multimatic",
-  "domains": ["vrc", "vaillant", "multimatic"]
+  "domains": ["binary_sensor", "climate", "fan", "sensor", "water_heater"],
+  "iot_class": "Cloud Polling"
 }
