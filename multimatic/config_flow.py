@@ -22,7 +22,6 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        # vol.Required(CONF_APPLICATION, default=MULTIMATIC): vol.In([MULTIMATIC, SENSO]),
         vol.Optional(CONF_SERIAL_NUMBER): str,
     }
 )
@@ -35,11 +34,7 @@ async def validate_input(hass: core.HomeAssistant, data):
     """
 
     await validate_authentication(
-        hass,
-        data[CONF_USERNAME],
-        data[CONF_PASSWORD],
-        data.get(CONF_SERIAL_NUMBER),
-        # data.get(CONF_APPLICATION),
+        hass, data[CONF_USERNAME], data[CONF_PASSWORD], data.get(CONF_SERIAL_NUMBER)
     )
 
     return {"title": "Multimatic"}

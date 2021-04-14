@@ -78,6 +78,7 @@ class ReportSensor(MultimaticEntity):
             self, hub, DOMAIN, report.id, report.name, device_class, False
         )
         self._report_id = report.id
+        self._unit = report.unit
 
     @property
     def report(self):
@@ -100,7 +101,7 @@ class ReportSensor(MultimaticEntity):
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement of this entity, if any."""
-        return self.report.unit
+        return self._unit
 
     @property
     def device_info(self):

@@ -97,6 +97,10 @@ and past it to `custom_component`
 6) The hard job is starting now, you have to find old entity_id you were using in automation or somewhere else. 
 You can do some find and replace (e.g. `climate.vaillant_bathroom`-> `climate.bathroom`)
 
+### [1.5.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.1)
+**Please see change log of [1.5.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0) if you're 
+migrating from 1.4.0.**
+- Fix error in case of some report sensor are not available
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`

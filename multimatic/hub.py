@@ -56,7 +56,6 @@ class ApiHub(DataUpdateCoordinator[System]):
         username = entry.data[CONF_USERNAME]
         password = entry.data[CONF_PASSWORD]
         serial = entry.data.get(CONF_SERIAL_NUMBER)
-        # app = entry.data.get(CONF_APPLICATION)
 
         super().__init__(
             hass,
@@ -92,7 +91,7 @@ class ApiHub(DataUpdateCoordinator[System]):
             await self._manager.request_hvac_update()
         except ApiError as err:
             if err.response.status == 409:
-                _LOGGER.warning("Request_hvac_update is done too often")
+                _LOGGER.warning("request_hvac_update is done too often")
             else:
                 await self._handle_api_error(err)
                 await self.authenticate()
