@@ -4,7 +4,9 @@
 
 Ideas are welcome ! Don't hesitate to create issue to suggest something, it will be really appreciated.
 
-Please download the `multimatic` folder and put it inside your `custom_components` folder.
+##Installations
+- If you are using HACS, please see https://hacs.xyz/docs/faq/custom_repositories/
+- Otherwise, download the zip from the latest release and copy `multimatic` folder and put it inside your `custom_components` folder.
 
 You can configure it through the UI using integration.
 You have to provided your username and password (same as multimatic app)
