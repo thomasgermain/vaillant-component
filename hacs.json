@@ -1,0 +1,6 @@
+{
+  "name": "multimatic",
+  "domains": ["binary_sensor", "climate", "fan", "sensor", "water_heater"],
+  "render_readme": true,
+  "iot_class": "Cloud Polling"
+}

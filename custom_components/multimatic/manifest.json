@@ -2,7 +2,8 @@
   "domain": "multimatic",
   "name": "Multimatic",
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/multimatic",
+  "documentation": "https://github.com/thomasgermain/vaillant-component",
+  "issue_tracker": "https://github.com/thomasgermain/vaillant-component/issues",
   "requirements": [
     "pymultimatic==0.3.2"
   ],
