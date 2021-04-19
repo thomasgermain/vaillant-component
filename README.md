@@ -97,6 +97,8 @@ and past it to `custom_component`
 6) The hard job is starting now, you have to find old entity_id you were using in automation or somewhere else. 
 You can do some find and replace (e.g. `climate.vaillant_bathroom`-> `climate.bathroom`)
 
+### [1.6.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.6.0)
+- Supporting HACS (only by custom repository right now). Please be sure to install at least version 1.6.0). See https://hacs.xyz/docs/faq/custom_repositories/ for installations.
 
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`
