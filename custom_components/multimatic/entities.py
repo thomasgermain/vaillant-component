@@ -6,7 +6,7 @@ from typing import Optional
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import slugify
 
-from . import ApiHub
+from . import MultimaticDataUpdateCoordinator
 from .const import DOMAIN as MULTIMATIC, REFRESH_ENTITIES_EVENT
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,48 +15,31 @@ _LOGGER = logging.getLogger(__name__)
 class MultimaticEntity(CoordinatorEntity, ABC):
     """Define base class for multimatic entities."""
 
-    coordinator: ApiHub
+    coordinator: MultimaticDataUpdateCoordinator
 
-    def __init__(
-        self, hub: ApiHub, domain, device_id, name, dev_class=None, class_id=True
-    ):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator, domain, device_id):
         """Initialize entity."""
-        super().__init__(hub)
-        self._device_class = dev_class
+        super().__init__(coordinator)
 
-        temp_id = domain + "."
-        self._unique_id = domain + "." + MULTIMATIC + "_"
-        if hub.serial:
-            temp_id += hub.serial + "_"
-            self._unique_id += hub.serial + "_"
+        id_part = slugify(
+            device_id
+            + (
+                f"_{coordinator.data.info.serial_number}"
+                if coordinator.fixed_serial
+                else ""
+            )
+        )
 
-        temp_id += slugify(device_id)
-        self._unique_id += slugify(device_id)
-
-        if dev_class and class_id:
-            temp_id += "_" + dev_class
-            self._unique_id += "_" + dev_class
-
-        self.entity_id = temp_id.lower()
-        self._unique_id.lower()
-
-        self._entity_name = name
+        self.entity_id = f"{domain}.{id_part}"
+        self._unique_id = slugify(
+            f"{MULTIMATIC}_{coordinator.data.info.serial_number}_{device_id}"
+        )
         self._remove_listener = None
-
-    @property
-    def name(self) -> Optional[str]:
-        """Return the name of the entity."""
-        return self._entity_name
 
     @property
     def unique_id(self) -> Optional[str]:
         """Return a unique ID."""
         return self._unique_id
-
-    @property
-    def device_class(self):
-        """Return the class of this device, from component DEVICE_CLASSES."""
-        return self._device_class
 
     @property
     def listening(self):
@@ -88,3 +71,8 @@ class MultimaticEntity(CoordinatorEntity, ABC):
         await super().async_will_remove_from_hass()
         if self._remove_listener:
             self._remove_listener()
+
+    @property
+    def available(self) -> bool:
+        """Return if entity is available."""
+        return super().available and self.coordinator.data

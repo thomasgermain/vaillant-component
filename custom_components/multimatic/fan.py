@@ -7,8 +7,8 @@ from pymultimatic.model import OperatingModes, QuickModes
 
 from homeassistant.components.fan import DOMAIN, SUPPORT_PRESET_MODE, FanEntity
 
-from . import ApiHub
-from .const import DOMAIN as MULTIMATIC, HUB
+from . import MultimaticDataUpdateCoordinator
+from .const import COORDINATOR, DOMAIN as MULTIMATIC
 from .entities import MultimaticEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,26 +17,25 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the multimatic fan platform."""
 
-    hub: ApiHub = hass.data[MULTIMATIC][entry.unique_id][HUB]
+    coordinator: MultimaticDataUpdateCoordinator = hass.data[MULTIMATIC][
+        entry.unique_id
+    ][COORDINATOR]
 
-    if hub.data.ventilation:
+    if coordinator.data.ventilation:
         _LOGGER.debug("Adding fan entity")
-        async_add_entities([MultimaticFan(hub)])
+        async_add_entities([MultimaticFan(coordinator)])
 
 
 class MultimaticFan(MultimaticEntity, FanEntity):
     """Representation of a multimatic fan."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Initialize entity."""
 
         super().__init__(
-            hub,
+            coordinator,
             DOMAIN,
-            hub.data.ventilation.id,
-            hub.data.ventilation.name,
-            None,
-            False,
+            coordinator.data.ventilation.id,
         )
 
         self._preset_modes = [
@@ -49,6 +48,15 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     def component(self):
         """Return the ventilation."""
         return self.coordinator.data.ventilation
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return (
+            self.coordinator.data.ventilation.name
+            if self.coordinator.data.ventilation
+            else None
+        )
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""

@@ -108,6 +108,15 @@ You can do some find and replace (e.g. `climate.vaillant_bathroom`-> `climate.ba
 - Integration into the HACS default repositories 
 - Special thanks to [@vit-](https://github.com/vit-)
 
+### [1.7.0b](https://github.com/thomasgermain/vaillant-component/releases/tag/1.7.0b0)
+- **BREAKING CHANGE**: improvements of the `unique_id` of some entities (but not the `entity_id`).
+  You may have to delete old entities which will be unavailable 
+  and change the `entity_id` of newly created entities (because they may have `entity_id` like xxx_2) 
+- Names and units of sensors are None safe
+- Many technical improvements on entity updates
+- Better handling and logging in case of error
+- Update pymultimatic to 0.4.x (= improvement in handling wrong responses coming from the API)
+
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`
 - 1 climate entity per zone (expect if the zone is controlled by room) `climate.<zone id>`

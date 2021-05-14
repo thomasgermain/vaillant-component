@@ -6,8 +6,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, HUB, PLATFORMS, SERVICES_HANDLER
-from .hub import ApiHub
+from .const import COORDINATOR, DOMAIN, PLATFORMS, SERVICES_HANDLER
+from .coordinator import MultimaticDataUpdateCoordinator
 from .service import SERVICES, MultimaticServiceHandler
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,13 +21,13 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up multimatic from a config entry."""
 
-    api: ApiHub = ApiHub(hass, entry)
+    api: MultimaticDataUpdateCoordinator = MultimaticDataUpdateCoordinator(hass, entry)
     await api.authenticate()
     await api.async_refresh()
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault(entry.unique_id, {})
-    hass.data[DOMAIN][entry.unique_id][HUB] = api
+    hass.data[DOMAIN][entry.unique_id][COORDINATOR] = api
 
     for platform in PLATFORMS:
         hass.async_create_task(
@@ -44,7 +44,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_setup_service(api: ApiHub, hass):
+async def async_setup_service(api: MultimaticDataUpdateCoordinator, hass):
     """Set up services."""
     if not hass.data.get(SERVICES_HANDLER):
         service_handler = MultimaticServiceHandler(api, hass)
