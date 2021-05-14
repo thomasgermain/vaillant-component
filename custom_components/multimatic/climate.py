@@ -2,12 +2,13 @@
 
 import abc
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pymultimatic.model import (
     ActiveFunction,
     ActiveMode,
     Component,
+    Mode,
     OperatingModes,
     QuickModes,
     Room,
@@ -36,11 +37,11 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 from homeassistant.helpers import entity_platform
 
-from . import SERVICES, ApiHub
+from . import SERVICES, MultimaticDataUpdateCoordinator
 from .const import (
+    COORDINATOR,
     DEFAULT_QUICK_VETO_DURATION,
     DOMAIN as MULTIMATIC,
-    HUB,
     PRESET_COOLING_FOR_X_DAYS,
     PRESET_COOLING_ON,
     PRESET_DAY,
@@ -52,7 +53,6 @@ from .const import (
 )
 from .entities import MultimaticEntity
 from .service import SERVICE_REMOVE_QUICK_VETO, SERVICE_SET_QUICK_VETO
-from .utils import gen_state_attrs
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,36 +66,37 @@ _FUNCTION_TO_HVAC_ACTION: Dict[ActiveFunction, str] = {
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the multimatic climate platform."""
     climates = []
-    hub = hass.data[MULTIMATIC][entry.unique_id][HUB]
+    coordinator = hass.data[MULTIMATIC][entry.unique_id][COORDINATOR]
 
-    if hub.data:
-        if hub.data.zones:
-            for zone in hub.data.zones:
+    if coordinator.data:
+        if coordinator.data.zones:
+            for zone in coordinator.data.zones:
                 if not zone.rbr and zone.enabled:
-                    entity = ZoneClimate(hub, zone)
+                    entity = ZoneClimate(coordinator, zone)
                     climates.append(entity)
 
-        if hub.data.rooms:
-            rbr_zone = [zone for zone in hub.data.zones if zone.rbr][0]
-            for room in hub.data.rooms:
-                entity = RoomClimate(hub, room, rbr_zone)
+        if coordinator.data.rooms:
+            rbr_zone = [zone for zone in coordinator.data.zones if zone.rbr][0]
+            for room in coordinator.data.rooms:
+                entity = RoomClimate(coordinator, room, rbr_zone)
                 climates.append(entity)
 
     _LOGGER.info("Adding %s climate entities", len(climates))
 
     async_add_entities(climates)
 
-    platform = entity_platform.current_platform.get()
-    platform.async_register_entity_service(
-        SERVICE_REMOVE_QUICK_VETO,
-        SERVICES[SERVICE_REMOVE_QUICK_VETO]["schema"],
-        SERVICE_REMOVE_QUICK_VETO,
-    )
-    platform.async_register_entity_service(
-        SERVICE_SET_QUICK_VETO,
-        SERVICES[SERVICE_SET_QUICK_VETO]["schema"],
-        SERVICE_SET_QUICK_VETO,
-    )
+    if len(climates) > 0:
+        platform = entity_platform.current_platform.get()
+        platform.async_register_entity_service(
+            SERVICE_REMOVE_QUICK_VETO,
+            SERVICES[SERVICE_REMOVE_QUICK_VETO]["schema"],
+            SERVICE_REMOVE_QUICK_VETO,
+        )
+        platform.async_register_entity_service(
+            SERVICE_SET_QUICK_VETO,
+            SERVICES[SERVICE_SET_QUICK_VETO]["schema"],
+            SERVICE_SET_QUICK_VETO,
+        )
 
     return True
 
@@ -103,9 +104,14 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
     """Base class for climate."""
 
-    def __init__(self, hub: ApiHub, comp_name, comp_id, component: Component):
+    def __init__(
+        self,
+        coordinator: MultimaticDataUpdateCoordinator,
+        comp_id,
+        component: Component,
+    ):
         """Initialize entity."""
-        super().__init__(hub, DOMAIN, comp_id, comp_name)
+        super().__init__(coordinator, DOMAIN, comp_id)
         self._component = component
 
     async def set_quick_veto(self, **kwargs):
@@ -152,6 +158,11 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
     def current_temperature(self):
         """Return the current temperature."""
         return self.component.temperature
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self.component.name if self.component else None
 
     @property
     def is_aux_heat(self) -> Optional[bool]:
@@ -207,7 +218,7 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
 class RoomClimate(MultimaticClimate):
     """Climate for a room."""
 
-    _MULTIMATIC_TO_HA = {
+    _MULTIMATIC_TO_HA: Dict[Mode, list] = {
         OperatingModes.AUTO: [HVAC_MODE_AUTO, PRESET_COMFORT],
         OperatingModes.OFF: [HVAC_MODE_OFF, PRESET_NONE],
         OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
@@ -227,10 +238,12 @@ class RoomClimate(MultimaticClimate):
         PRESET_SYSTEM_OFF: QuickModes.SYSTEM_OFF,
     }
 
-    def __init__(self, hub: ApiHub, room: Room, zone: Zone):
+    def __init__(
+        self, coordinator: MultimaticDataUpdateCoordinator, room: Room, zone: Zone
+    ):
         """Initialize entity."""
-        super().__init__(hub, room.name, room.name, room)
-        self._zone = zone
+        super().__init__(coordinator, room.name, room)
+        self._zone_id = zone.id
         self._supported_hvac = list(RoomClimate._HA_MODE_TO_MULTIMATIC.keys())
         self._supported_presets = list(RoomClimate._HA_PRESET_TO_MULTIMATIC.keys())
 
@@ -275,7 +288,7 @@ class RoomClimate(MultimaticClimate):
     @property
     def zone(self):
         """Return the zone the current room belongs."""
-        return self.coordinator.find_component(self._zone)
+        return self.coordinator.get_zone(self._zone_id)
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -287,13 +300,6 @@ class RoomClimate(MultimaticClimate):
         """Set new target hvac mode."""
         mode = RoomClimate._HA_MODE_TO_MULTIMATIC[hvac_mode]
         await self.coordinator.set_room_operating_mode(self, mode)
-
-    @property
-    def state_attributes(self) -> Dict[str, Any]:
-        """Return the optional state attributes."""
-        attributes = super().state_attributes
-        attributes.update(gen_state_attrs(self.component, self.active_mode))
-        return attributes
 
     @property
     def preset_mode(self) -> Optional[str]:
@@ -335,7 +341,7 @@ class RoomClimate(MultimaticClimate):
 class ZoneClimate(MultimaticClimate):
     """Climate for a zone."""
 
-    _MULTIMATIC_TO_HA = {
+    _MULTIMATIC_TO_HA: Dict[Mode, list] = {
         OperatingModes.AUTO: [HVAC_MODE_AUTO, PRESET_COMFORT],
         OperatingModes.DAY: [None, PRESET_DAY],
         OperatingModes.NIGHT: [None, PRESET_SLEEP],
@@ -369,9 +375,9 @@ class ZoneClimate(MultimaticClimate):
         PRESET_COOLING_FOR_X_DAYS: QuickModes.COOLING_FOR_X_DAYS,
     }
 
-    def __init__(self, hub: ApiHub, zone: Zone):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator, zone: Zone):
         """Initialize entity."""
-        super().__init__(hub, zone.name, zone.id, zone)
+        super().__init__(coordinator, zone.id, zone)
 
         self._supported_hvac = list(ZoneClimate._HA_MODE_TO_MULTIMATIC.keys())
         self._supported_presets = list(ZoneClimate._HA_PRESET_TO_MULTIMATIC.keys())
@@ -380,7 +386,7 @@ class ZoneClimate(MultimaticClimate):
             self._supported_presets.remove(PRESET_COOLING_ON)
             self._supported_presets.remove(PRESET_COOLING_FOR_X_DAYS)
 
-        if not hub.data.ventilation:
+        if not coordinator.data.ventilation:
             self._supported_hvac.remove(HVAC_MODE_FAN_ONLY)
 
     @property
@@ -451,13 +457,6 @@ class ZoneClimate(MultimaticClimate):
         """Set new target hvac mode."""
         mode = ZoneClimate._HA_MODE_TO_MULTIMATIC[hvac_mode]
         await self.coordinator.set_zone_operating_mode(self, mode)
-
-    @property
-    def state_attributes(self) -> Dict[str, Any]:
-        """Return the optional state attributes."""
-        attributes = super().state_attributes
-        attributes.update(gen_state_attrs(self.component, self.active_mode))
-        return attributes
 
     @property
     def hvac_action(self) -> Optional[str]:

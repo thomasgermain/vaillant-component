@@ -12,10 +12,9 @@ from homeassistant.components.water_heater import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 
-from . import ApiHub
-from .const import DOMAIN as MULTIMATIC, HUB
+from . import MultimaticDataUpdateCoordinator
+from .const import COORDINATOR, DOMAIN as MULTIMATIC
 from .entities import MultimaticEntity
-from .utils import gen_state_attrs
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,11 +35,10 @@ AWAY_MODES = [
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up water_heater platform."""
     entities = []
-    hub = hass.data[MULTIMATIC][entry.unique_id][HUB]
+    coordinator = hass.data[MULTIMATIC][entry.unique_id][COORDINATOR]
 
-    if hub.data and hub.data.dhw and hub.data.dhw.hotwater:
-        entity = MultimaticWaterHeater(hub)
-        entities.append(entity)
+    if coordinator.data and coordinator.data.dhw and coordinator.data.dhw.hotwater:
+        entities.append(MultimaticWaterHeater(coordinator))
 
     async_add_entities(entities)
     return True
@@ -49,12 +47,15 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     """Represent the multimatic water heater."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Initialize entity."""
-        super().__init__(
-            hub, DOMAIN, hub.data.dhw.hotwater.id, hub.data.dhw.hotwater.name
-        )
+        super().__init__(coordinator, DOMAIN, coordinator.data.dhw.hotwater.id)
         self._operations = {mode.name: mode for mode in HotWater.MODES}
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self.component.name if self.component else None
 
     @property
     def listening(self):
@@ -109,16 +110,6 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     def temperature_unit(self):
         """Return the unit of measurement used by the platform."""
         return TEMP_CELSIUS
-
-    @property
-    def state_attributes(self):
-        """Return the optional state attributes.
-
-        Adding current temperature
-        """
-        attrs = super().state_attributes
-        attrs.update(gen_state_attrs(self.component, self.active_mode))
-        return attrs
 
     @property
     def target_temperature(self):

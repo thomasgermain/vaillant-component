@@ -14,7 +14,7 @@ from .const import (  # pylint: disable=unused-import
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-from .hub import check_authentication
+from .coordinator import check_authentication
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +22,6 @@ DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        # vol.Required(CONF_APPLICATION, default=MULTIMATIC): vol.In([MULTIMATIC, SENSO]),
         vol.Optional(CONF_SERIAL_NUMBER): str,
     }
 )
@@ -35,11 +34,7 @@ async def validate_input(hass: core.HomeAssistant, data):
     """
 
     await validate_authentication(
-        hass,
-        data[CONF_USERNAME],
-        data[CONF_PASSWORD],
-        data.get(CONF_SERIAL_NUMBER),
-        # data.get(CONF_APPLICATION),
+        hass, data[CONF_USERNAME], data[CONF_PASSWORD], data.get(CONF_SERIAL_NUMBER)
     )
 
     return {"title": "Multimatic"}
@@ -51,11 +46,11 @@ async def validate_authentication(hass, username, password, serial):
         if not await check_authentication(hass, username, password, serial):
             raise InvalidAuth
     except ApiError as err:
-        resp = await err.response.text()
         _LOGGER.exception(
-            "Unable to authenticate, API says: %s, status: %s",
-            resp,
-            err.response.status,
+            "Unable to authenticate %s, status: %s, response: %s",
+            err.message,
+            err.status,
+            err.response,
         )
         raise InvalidAuth from err
 

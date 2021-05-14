@@ -17,8 +17,8 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.util import slugify
 
-from . import ApiHub
-from .const import DOMAIN as MULTIMATIC, HUB
+from . import MultimaticDataUpdateCoordinator
+from .const import COORDINATOR, DOMAIN as MULTIMATIC
 from .entities import MultimaticEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,29 +27,35 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the multimatic binary sensor platform."""
     sensors = []
-    hub: ApiHub = hass.data[MULTIMATIC][entry.unique_id][HUB]
-    if hub.data:
-        if hub.data.dhw and hub.data.dhw.circulation:
-            sensors.append(CirculationSensor(hub))
+    coordinator: MultimaticDataUpdateCoordinator = hass.data[MULTIMATIC][
+        entry.unique_id
+    ][COORDINATOR]
+    if coordinator.data:
+        if coordinator.data.dhw and coordinator.data.dhw.circulation:
+            sensors.append(CirculationSensor(coordinator))
 
-        if hub.data.boiler_status:
-            sensors.append(BoilerStatus(hub))
+        if coordinator.data.boiler_status:
+            sensors.append(BoilerStatus(coordinator))
 
-        if hub.data.info:
-            sensors.append(BoxOnline(hub))
-            sensors.append(BoxUpdate(hub))
+        if coordinator.data.info:
+            sensors.append(BoxOnline(coordinator))
+            sensors.append(BoxUpdate(coordinator))
 
-        for room in hub.data.rooms:
-            sensors.append(RoomWindow(hub, room))
+        for room in coordinator.data.rooms:
+            sensors.append(RoomWindow(coordinator, room))
             for device in room.devices:
                 if device.device_type == "VALVE":
-                    sensors.append(RoomDeviceChildLock(hub, device, room))
+                    sensors.append(RoomDeviceChildLock(coordinator, device, room))
 
-                sensors.append(RoomDeviceBattery(hub, device, room))
-                sensors.append(RoomDeviceConnectivity(hub, device, room))
+                sensors.append(RoomDeviceBattery(coordinator, device))
+                sensors.append(RoomDeviceConnectivity(coordinator, device))
 
         sensors.extend(
-            [HolidayModeSensor(hub), QuickModeSensor(hub), MultimaticErrors(hub)]
+            [
+                HolidayModeSensor(coordinator),
+                QuickModeSensor(coordinator),
+                MultimaticErrors(coordinator),
+            ]
         )
 
     _LOGGER.info("Adding %s binary sensor entities", len(sensors))
@@ -61,21 +67,18 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class CirculationSensor(MultimaticEntity, BinarySensorEntity):
     """Binary sensor for circulation running on or not."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Initialize entity."""
-        super().__init__(
-            hub,
-            DOMAIN,
-            "dhw circulation",
-            "Circulation",
-            DEVICE_CLASS_POWER,
-            False,
-        )
+        super().__init__(coordinator, DOMAIN, "dhw_circulation")
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_POWER
 
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-
         return (
             self.active_mode.current == OperatingModes.ON
             or self.active_mode.sub == SettingModes.ON
@@ -85,7 +88,7 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
     @property
     def available(self):
         """Return True if entity is available."""
-        return super().available and self.component is not None
+        return super().available and self.circulation is not None
 
     @property
     def active_mode(self):
@@ -93,7 +96,12 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
         return self.coordinator.data.get_active_mode_circulation()
 
     @property
-    def component(self):
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self.circulation.name if self.circulation else None
+
+    @property
+    def circulation(self):
         """Return the circulation."""
         return self.coordinator.data.dhw.circulation
 
@@ -101,63 +109,79 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
 class RoomWindow(MultimaticEntity, BinarySensorEntity):
     """multimatic window binary sensor."""
 
-    def __init__(self, hub: ApiHub, room: Room):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator, room: Room):
         """Initialize entity."""
-        super().__init__(hub, DOMAIN, room.name, room.name, DEVICE_CLASS_WINDOW)
-        self._room = room
+        super().__init__(coordinator, DOMAIN, f"{room.name}_{DEVICE_CLASS_WINDOW}")
+        self._room_id = room.id
 
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-        return self.coordinator.find_component(self._room).window_open
+        return self.room.window_open
 
     @property
     def available(self):
         """Return True if entity is available."""
-        return super().available and self._room is not None
+        return super().available and self.room is not None
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_WINDOW
+
+    @property
+    def name(self) -> str:
+        """Return the name of the entity."""
+        return self.room.name if self.room else None
+
+    @property
+    def room(self):
+        """Return the room."""
+        return self.coordinator.get_room(self._room_id)
 
 
 class RoomDeviceEntity(MultimaticEntity, BinarySensorEntity):
     """Base class for ambisense device."""
 
-    def __init__(self, hub: ApiHub, device: Device, room: Room, device_class) -> None:
+    def __init__(
+        self, coordinator: MultimaticDataUpdateCoordinator, device: Device, extra_id
+    ) -> None:
         """Initialize device."""
         MultimaticEntity.__init__(
-            self, hub, DOMAIN, device.sgtin, device.name, device_class
+            self, coordinator, DOMAIN, f"{device.sgtin}_{extra_id}"
         )
-        self.room = room
-        self.device = device
+        self._sgtin = device.sgtin
 
     @property
     def device_info(self):
         """Return device specific attributes."""
+        device = self.device
         return {
-            "identifiers": {(MULTIMATIC, self.device.sgtin)},
-            "name": self.device.name,
+            "identifiers": {(MULTIMATIC, device.sgtin)},
+            "name": device.name,
             "manufacturer": "Vaillant",
-            "model": self.device.device_type,
+            "model": device.device_type,
         }
 
     @property
     def device_state_attributes(self):
         """Return the state attributes."""
+        device = self.device
         return {
-            "device_id": self.device.sgtin,
-            "battery_low": self.device.battery_low,
-            "connected": not self.device.radio_out_of_reach,
+            "device_id": device.sgtin,
+            "battery_low": device.battery_low,
+            "connected": not device.radio_out_of_reach,
         }
-
-    def find_device(self):
-        """Find a device in a room."""
-        if self.room:
-            for device in self.coordinator.find_component(self.room).devices:
-                if device.sgtin == self.device.sgtin:
-                    return device
 
     @property
     def available(self):
         """Return True if entity is available."""
-        return super().available and self.find_device() is not None
+        return super().available and self.device is not None
+
+    @property
+    def device(self):
+        """Return the device."""
+        return self.coordinator.get_room_device(self._sgtin)
 
 
 class RoomDeviceChildLock(RoomDeviceEntity):
@@ -167,48 +191,76 @@ class RoomDeviceChildLock(RoomDeviceEntity):
     devices inside a room.
     """
 
-    def __init__(self, hub: ApiHub, device: Device, room: Room):
+    def __init__(
+        self, coordinator: MultimaticDataUpdateCoordinator, device: Device, room: Room
+    ):
         """Initialize entity."""
-        super().__init__(hub, device, room, DEVICE_CLASS_LOCK)
+        super().__init__(coordinator, device, DEVICE_CLASS_LOCK)
+        self._room_id = room.id
 
     @property
     def is_on(self):
         """According to the doc, true means unlock, false lock."""
-        return not self.coordinator.find_component(self.room).child_lock
+        return not self.room.child_lock
+
+    @property
+    def available(self):
+        """Return True if entity is available."""
+        return super().available and self.room is not None
+
+    @property
+    def room(self):
+        """Return the room."""
+        return self.coordinator.get_room(self._room_id)
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_LOCK
 
 
 class RoomDeviceBattery(RoomDeviceEntity):
     """Represent a device battery."""
 
-    def __init__(self, hub: ApiHub, device: Device, room: Room):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator, device: Device):
         """Initialize entity."""
-        super().__init__(hub, device, room, DEVICE_CLASS_BATTERY)
+        super().__init__(coordinator, device, DEVICE_CLASS_BATTERY)
 
     @property
     def is_on(self):
         """According to the doc, true means normal, false low."""
-        return self.find_device().battery_low
+        return self.device.battery_low
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_BATTERY
 
 
 class RoomDeviceConnectivity(RoomDeviceEntity):
     """Device in room is out of reach or not."""
 
-    def __init__(self, hub: ApiHub, device: Device, room: Room):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator, device: Device):
         """Initialize entity."""
-        super().__init__(hub, device, room, DEVICE_CLASS_CONNECTIVITY)
+        super().__init__(coordinator, device, DEVICE_CLASS_CONNECTIVITY)
 
     @property
     def is_on(self):
         """According to the doc, true means connected, false disconnected."""
-        return not self.find_device().radio_out_of_reach
+        return not self.device.radio_out_of_reach
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_CONNECTIVITY
 
 
 class VRBoxEntity(MultimaticEntity, BinarySensorEntity):
     """multimatic gateway device (ex: VR920)."""
 
-    def __init__(self, hub: ApiHub, device_class, name, comp_id):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator, comp_id):
         """Initialize entity."""
-        MultimaticEntity.__init__(self, hub, DOMAIN, comp_id, name, device_class, False)
+        MultimaticEntity.__init__(self, coordinator, DOMAIN, comp_id)
 
     @property
     def device_info(self):
@@ -245,13 +297,11 @@ class VRBoxEntity(MultimaticEntity, BinarySensorEntity):
 class BoxUpdate(VRBoxEntity):
     """Update binary sensor."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Init."""
         super().__init__(
-            hub,
-            DEVICE_CLASS_POWER,
-            "Multimatic system update",
-            "multimatic_system_update",
+            coordinator,
+            "Multimatic_system_update",
         )
 
     @property
@@ -259,40 +309,47 @@ class BoxUpdate(VRBoxEntity):
         """Return true if the binary sensor is on."""
         return not self.coordinator.data.info.is_up_to_date
 
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_POWER
+
 
 class BoxOnline(VRBoxEntity):
     """Check if box is online."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Init."""
-        super().__init__(
-            hub,
-            DEVICE_CLASS_CONNECTIVITY,
-            "multimatic_system_online",
-            "Multimatic system Online",
-        )
+        super().__init__(coordinator, "multimatic_system_online")
 
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
         return self.coordinator.data.info.is_online
 
+    @property
+    def name(self):
+        """Return the name of the entity."""
+        return "Multimatic system Online"
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_CONNECTIVITY
+
 
 class BoilerStatus(MultimaticEntity, BinarySensorEntity):
     """Check if there is some error."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Initialize entity."""
         MultimaticEntity.__init__(
             self,
-            hub,
+            coordinator,
             DOMAIN,
-            hub.data.boiler_status.device_name,
-            hub.data.boiler_status.device_name,
-            DEVICE_CLASS_PROBLEM,
-            False,
+            coordinator.data.boiler_status.device_name,
         )
-        self._boiler_id = slugify(hub.data.boiler_status.device_name)
+        self._boiler_id = slugify(coordinator.data.boiler_status.device_name)
 
     @property
     def is_on(self):
@@ -302,25 +359,23 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        if self.boiler_status is not None:
-            return {
-                "status_code": self.boiler_status.status_code,
-                "title": self.boiler_status.title,
-                "timestamp": self.boiler_status.timestamp,
-            }
-        return None
+        return {
+            "status_code": self.boiler_status.status_code,
+            "title": self.boiler_status.title,
+            "timestamp": self.boiler_status.timestamp,
+        }
 
     @property
     def device_info(self):
         """Return device specific attributes."""
-        if self.boiler_status is not None:
-            return {
-                "identifiers": {(MULTIMATIC, self._boiler_id, self.coordinator.serial)},
-                "name": self.boiler_status.device_name,
-                "manufacturer": "Vaillant",
-                "model": self.boiler_status.device_name,
-            }
-        return None
+        return {
+            "identifiers": {
+                (MULTIMATIC, self._boiler_id, self.coordinator.data.info.serial_number)
+            },
+            "name": self.boiler_status.device_name,
+            "manufacturer": "Vaillant",
+            "model": self.boiler_status.device_name,
+        }
 
     @property
     def device_state_attributes(self):
@@ -335,23 +390,30 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
         return super().available and self.boiler_status is not None
 
     @property
+    def name(self):
+        """Return the name of the entity."""
+        return self.boiler_status.device_name if self.boiler_status else None
+
+    @property
     def boiler_status(self):
         """Return the boiler status."""
         return self.coordinator.data.boiler_status
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_PROBLEM
 
 
 class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
     """Check if there is any error message from system."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Init."""
         super().__init__(
-            hub,
+            coordinator,
             DOMAIN,
             "multimatic_errors",
-            "Multimatic Errors",
-            DEVICE_CLASS_PROBLEM,
-            False,
         )
 
     @property
@@ -382,20 +444,23 @@ class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
         """Return if entity is available."""
         return super().available and self.coordinator.data.errors is not None
 
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_PROBLEM
+
+    @property
+    def name(self):
+        """Return the name of the entity."""
+        return "Multimatic Errors"
+
 
 class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
     """Binary sensor for holiday mode."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Init."""
-        super().__init__(
-            hub,
-            DOMAIN,
-            "multimatic_holiday",
-            "Multimatic holiday",
-            DEVICE_CLASS_POWER,
-            False,
-        )
+        super().__init__(coordinator, DOMAIN, "multimatic_holiday")
 
     @property
     def is_on(self):
@@ -413,27 +478,29 @@ class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
                 "end_date": self.coordinator.data.holiday.end_date.isoformat(),
                 "temperature": self.coordinator.data.holiday.target,
             }
-        return {}
 
     @property
     def listening(self):
         """Return whether this entity is listening for system changes or not."""
         return True
 
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_POWER
+
+    @property
+    def name(self):
+        """Return the name of the entity."""
+        return "Multimatic holiday"
+
 
 class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
     """Binary sensor for holiday mode."""
 
-    def __init__(self, hub: ApiHub):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
         """Init."""
-        super().__init__(
-            hub,
-            DOMAIN,
-            "multimatic_quick_mode",
-            "Multimatic quick mode",
-            DEVICE_CLASS_POWER,
-            False,
-        )
+        super().__init__(coordinator, DOMAIN, "multimatic_quick_mode")
 
     @property
     def is_on(self):
@@ -443,11 +510,20 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
-        if self.is_on:
+        if self.coordinator.data.quick_mode:
             return {"quick_mode": self.coordinator.data.quick_mode.name}
-        return {}
 
     @property
     def listening(self):
         """Return whether this entity is listening for system changes or not."""
         return True
+
+    @property
+    def name(self):
+        """Return the name of the entity."""
+        return "Multimatic quick mode"
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return DEVICE_CLASS_POWER

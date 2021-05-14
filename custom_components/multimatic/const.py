@@ -2,7 +2,6 @@
 
 # constants used in hass.data
 DOMAIN = "multimatic"
-HUB = "hub"
 ENTITIES = "entities"
 
 # list of platforms into entity are created
@@ -33,12 +32,10 @@ MAX_QUICK_VETO_DURATION = 24 * 60
 CONF_QUICK_VETO_DURATION = "quick_veto_duration"
 CONF_SMARTPHONE_ID = "smartphoneid"
 CONF_SERIAL_NUMBER = "serial_number"
-CONF_APPLICATION = "application"
 
 # constants for states_attributes
-ATTR_MULTIMATIC_MODE = "multimatic_mode"
-ATTR_MULTIMATIC_SETTING = "setting"
-ATTR_ENDS_AT = "ends_at"
+# ATTR_MULTIMATIC_SETTING = "setting"
+# ATTR_ENDS_AT = "ends_at"
 ATTR_QUICK_MODE = "quick_mode"
 ATTR_START_DATE = "start_date"
 ATTR_END_DATE = "end_date"
@@ -46,6 +43,6 @@ ATTR_TEMPERATURE = "temperature"
 ATTR_DURATION = "duration"
 
 SERVICES_HANDLER = "services_handler"
-HUB = "hub"
+COORDINATOR = "coordinator"
 
 REFRESH_ENTITIES_EVENT = "multimatic_refresh_entities"
