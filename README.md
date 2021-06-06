@@ -5,13 +5,13 @@
 Ideas are welcome ! Don't hesitate to create issue to suggest something, it will be really appreciated.
 
 ## Installations
-- Through HACS !
+- Through HACS [custom repositories](https://hacs.xyz/docs/faq/custom_repositories/) !
 - Otherwise, download the zip from the latest release and copy `multimatic` folder and put it inside your `custom_components` folder.
 
 You can configure it through the UI using integration.
 You have to provided your username and password (same as multimatic app)
 
-**It is strongly recommended to use a dedicated user for HA**, for 2 reasons:
+**It is strongly recommended using a dedicated user for HA**, for 2 reasons:
 - As usual for security reason, if your HA got compromise somehow, you know which user to block
 - I cannot confirm it, but it seems multimatic API only accept the same user to be connected at the same time
 
