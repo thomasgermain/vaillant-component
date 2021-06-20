@@ -22,7 +22,7 @@ import pymultimatic.systemmanager
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -42,7 +42,7 @@ async def check_authentication(hass, username, password, serial):
     return await pymultimatic.systemmanager.SystemManager(
         username,
         password,
-        async_create_clientsession(hass),
+        async_get_clientsession(hass),
         DEFAULT_SMART_PHONE_ID,
         serial,
     ).login(True)
@@ -68,9 +68,11 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
             update_method=self._fetch_data,
         )
 
-        session = async_create_clientsession(hass)
         self._manager = pymultimatic.systemmanager.SystemManager(
-            username, password, session, DEFAULT_SMART_PHONE_ID, serial
+            user=username,
+            password=password,
+            session=async_get_clientsession(hass),
+            serial=serial,
         )
 
         self.fixed_serial = serial is not None
@@ -108,7 +110,9 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
             return system
         except ApiError as err:
             await self._log_error(err)
-            await self.authenticate()
+            if err.status < 500:
+                await self._manager.logout()
+                await self.authenticate()
             raise
 
     async def logout(self):
@@ -122,13 +126,22 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
         return True
 
     @staticmethod
-    async def _log_error(api_err):
-        _LOGGER.error(
-            "Error with multimatic API: %s, status: %s, response: %s",
-            api_err.message,
-            api_err.status,
-            api_err.response,
-        )
+    async def _log_error(api_err, exec_info=True):
+        if api_err.status == 409:
+            _LOGGER.warning(
+                "Multimatic API: %s, status: %s, response: %s",
+                api_err.message,
+                api_err.status,
+                api_err.response,
+            )
+        else:
+            _LOGGER.error(
+                "Error with multimatic API: %s, status: %s, response: %s",
+                api_err.message,
+                api_err.status,
+                api_err.response,
+                exc_info=exec_info,
+            )
 
     def find_component(self, comp):
         """Find a component in the system with the given id, no IO is done."""

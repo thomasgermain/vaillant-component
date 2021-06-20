@@ -1,6 +1,8 @@
 """Interfaces with multimatic sensors."""
+
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 from pymultimatic.model import Report
 
@@ -46,7 +48,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class OutdoorTemperatureSensor(MultimaticEntity):
     """Outdoor temperature sensor."""
 
-    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator) -> None:
         """Initialize entity."""
         super().__init__(coordinator, DOMAIN, "outdoor_temperature")
 
@@ -81,10 +83,17 @@ class OutdoorTemperatureSensor(MultimaticEntity):
 class ReportSensor(MultimaticEntity):
     """Report sensor."""
 
-    def __init__(self, coordinator: MultimaticDataUpdateCoordinator, report: Report):
+    def __init__(
+        self, coordinator: MultimaticDataUpdateCoordinator, report: Report
+    ) -> None:
         """Init entity."""
         MultimaticEntity.__init__(self, coordinator, DOMAIN, report.id)
         self._report_id = report.id
+        self._unit = report.unit
+        self._name = report.name
+        self._class = UNIT_TO_DEVICE_CLASS.get(report.unit, None)
+        self._device_name = report.device_name
+        self._device_id = report.device_id
 
     @property
     def report(self):
@@ -102,9 +111,9 @@ class ReportSensor(MultimaticEntity):
         return super().available and self.report is not None
 
     @property
-    def unit_of_measurement(self) -> Optional[str]:
+    def unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
-        return self.report.unit if self.report else None
+        return self._unit
 
     @property
     def device_info(self):
@@ -113,20 +122,20 @@ class ReportSensor(MultimaticEntity):
             "identifiers": {
                 (
                     DOMAIN,
-                    self.report.device_id,
+                    self._device_id,
                     self.coordinator.data.info.serial_number,
                 )
             },
-            "name": self.report.device_name,
+            "name": self._device_name,
             "manufacturer": "Vaillant",
         }
 
     @property
-    def device_class(self) -> Optional[str]:
+    def device_class(self) -> str | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return UNIT_TO_DEVICE_CLASS.get(self.report.unit, None)
+        return self._class
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str | None:
         """Return the name of the entity."""
-        return self.report.name if self.report else None
+        return self._name

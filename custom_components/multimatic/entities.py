@@ -1,7 +1,8 @@
 """Common entities."""
+from __future__ import annotations
+
 from abc import ABC
 import logging
-from typing import Optional
 
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import slugify
@@ -37,7 +38,7 @@ class MultimaticEntity(CoordinatorEntity, ABC):
         self._remove_listener = None
 
     @property
-    def unique_id(self) -> Optional[str]:
+    def unique_id(self) -> str | None:
         """Return a unique ID."""
         return self._unique_id
 
