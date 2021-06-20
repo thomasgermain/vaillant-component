@@ -47,15 +47,16 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     """Represent the multimatic water heater."""
 
-    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator) -> None:
         """Initialize entity."""
         super().__init__(coordinator, DOMAIN, coordinator.data.dhw.hotwater.id)
         self._operations = {mode.name: mode for mode in HotWater.MODES}
+        self._name = coordinator.data.dhw.hotwater.name
 
     @property
     def name(self) -> str:
         """Return the name of the entity."""
-        return self.component.name if self.component else None
+        return self._name
 
     @property
     def listening(self):

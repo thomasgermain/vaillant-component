@@ -30,7 +30,6 @@ MAX_QUICK_VETO_DURATION = 24 * 60
 
 # configuration keys
 CONF_QUICK_VETO_DURATION = "quick_veto_duration"
-CONF_SMARTPHONE_ID = "smartphoneid"
 CONF_SERIAL_NUMBER = "serial_number"
 
 # constants for states_attributes

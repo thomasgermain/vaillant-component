@@ -5,7 +5,7 @@
   "documentation": "https://github.com/thomasgermain/vaillant-component",
   "issue_tracker": "https://github.com/thomasgermain/vaillant-component/issues",
   "requirements": [
-    "pymultimatic==0.4.1"
+    "pymultimatic==0.4.2"
   ],
   "ssdp": [],
   "zeroconf": [],
@@ -14,6 +14,6 @@
   "codeowners": [
     "@thomasgermain"
   ],
-  "version": "1.7.0b0",
+  "version": "1.7.0b1",
   "iot_class": "cloud_polling"
 }

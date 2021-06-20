@@ -1,7 +1,9 @@
 """Interfaces with Multimatic fan."""
 
+from __future__ import annotations
+
 import logging
-from typing import Any, List, Optional
+from typing import Any
 
 from pymultimatic.model import OperatingModes, QuickModes
 
@@ -29,7 +31,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class MultimaticFan(MultimaticEntity, FanEntity):
     """Representation of a multimatic fan."""
 
-    def __init__(self, coordinator: MultimaticDataUpdateCoordinator):
+    def __init__(self, coordinator: MultimaticDataUpdateCoordinator) -> None:
         """Initialize entity."""
 
         super().__init__(
@@ -66,9 +68,9 @@ class MultimaticFan(MultimaticEntity, FanEntity):
 
     async def async_turn_on(
         self,
-        speed: Optional[str] = None,
-        percentage: Optional[int] = None,
-        preset_mode: Optional[str] = None,
+        speed: str | None = None,
+        percentage: int | None = None,
+        preset_mode: str | None = None,
         **kwargs,
     ) -> None:
         """Turn on the fan."""
@@ -98,12 +100,12 @@ class MultimaticFan(MultimaticEntity, FanEntity):
         return SUPPORT_PRESET_MODE
 
     @property
-    def preset_mode(self) -> Optional[str]:
+    def preset_mode(self) -> str | None:
         """Return the current preset mode, e.g., auto, smart, interval, favorite."""
         return self.coordinator.data.get_active_mode_ventilation().current.name
 
     @property
-    def preset_modes(self) -> Optional[List[str]]:
+    def preset_modes(self) -> list[str] | None:
         """Return a list of available preset modes.
 
         Requires SUPPORT_SET_SPEED.
