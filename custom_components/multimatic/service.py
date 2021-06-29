@@ -7,7 +7,6 @@ import voluptuous as vol
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.util.dt import parse_date
 
-from . import MultimaticDataUpdateCoordinator
 from .const import (
     ATTR_DURATION,
     ATTR_END_DATE,
@@ -15,6 +14,7 @@ from .const import (
     ATTR_START_DATE,
     ATTR_TEMPERATURE,
 )
+from .coordinator import MultimaticApi
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,20 +87,20 @@ SERVICES = {
 class MultimaticServiceHandler:
     """Service implementation."""
 
-    def __init__(self, hub: MultimaticDataUpdateCoordinator, hass) -> None:
+    def __init__(self, hub: MultimaticApi, hass) -> None:
         """Init."""
-        self._hub = hub
+        self.api = hub
         self._hass = hass
 
     async def service_call(self, call):
-        """Handle service call."""
+        """Handle service calls."""
         service = call.service
         method = getattr(self, service)
         await method(data=call.data)
 
     async def remove_quick_mode(self, data):
         """Remove quick mode. It has impact on all components."""
-        await self._hub.remove_quick_mode()
+        await self.api.remove_quick_mode()
 
     async def set_holiday_mode(self, data):
         """Set holiday mode."""
@@ -111,17 +111,17 @@ class MultimaticServiceHandler:
         end = parse_date(end_str.split("T")[0])
         if end is None or start is None:
             raise ValueError(f"dates are incorrect {start_str} {end_str}")
-        await self._hub.set_holiday_mode(start, end, temp)
+        await self.api.set_holiday_mode(start, end, temp)
 
     async def remove_holiday_mode(self, data):
         """Remove holiday mode."""
-        await self._hub.remove_holiday_mode()
+        await self.api.remove_holiday_mode()
 
     async def set_quick_mode(self, data):
         """Set quick mode, it may impact the whole system."""
         quick_mode = data.get(ATTR_QUICK_MODE, None)
-        await self._hub.set_quick_mode(quick_mode)
+        await self.api.set_quick_mode(quick_mode)
 
     async def request_hvac_update(self, data):
         """Ask multimatic API to get data from the installation."""
-        await self._hub.request_hvac_update()
+        await self.api.request_hvac_update()

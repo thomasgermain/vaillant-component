@@ -2,19 +2,16 @@
 import logging
 
 from pymultimatic.api import ApiError
+from pymultimatic.systemmanager import SystemManager
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
 from homeassistant.core import callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import (  # pylint: disable=unused-import
-    CONF_SERIAL_NUMBER,
-    DEFAULT_SCAN_INTERVAL,
-    DOMAIN,
-)
-from .coordinator import check_authentication
+from .const import CONF_SERIAL_NUMBER, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,21 +30,21 @@ async def validate_input(hass: core.HomeAssistant, data):
     Data has the keys from DATA_SCHEMA with values provided by the user.
     """
 
-    await validate_authentication(
-        hass, data[CONF_USERNAME], data[CONF_PASSWORD], data.get(CONF_SERIAL_NUMBER)
-    )
+    await validate_authentication(hass, data[CONF_USERNAME], data[CONF_PASSWORD])
 
     return {"title": "Multimatic"}
 
 
-async def validate_authentication(hass, username, password, serial):
+async def validate_authentication(hass, username, password):
     """Ensure provided credentials are working."""
     try:
-        if not await check_authentication(hass, username, password, serial):
+        if not await SystemManager(
+            username, password, async_get_clientsession(hass)
+        ).login(True):
             raise InvalidAuth
     except ApiError as err:
-        _LOGGER.exception(
-            "Unable to authenticate %s, status: %s, response: %s",
+        _LOGGER.error(
+            "Unable to authenticate: %s, status: %s, response: %s",
             err.message,
             err.status,
             err.response,

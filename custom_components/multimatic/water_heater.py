@@ -12,9 +12,10 @@ from homeassistant.components.water_heater import (
 )
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 
-from . import MultimaticDataUpdateCoordinator
-from .const import COORDINATOR, DOMAIN as MULTIMATIC
+from .const import DHW
+from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
+from .utils import get_coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,9 +36,9 @@ AWAY_MODES = [
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up water_heater platform."""
     entities = []
-    coordinator = hass.data[MULTIMATIC][entry.unique_id][COORDINATOR]
+    coordinator = get_coordinator(hass, DHW, entry.unique_id)
 
-    if coordinator.data and coordinator.data.dhw and coordinator.data.dhw.hotwater:
+    if coordinator.data and coordinator.data.hotwater:
         entities.append(MultimaticWaterHeater(coordinator))
 
     async_add_entities(entities)
@@ -47,11 +48,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     """Represent the multimatic water heater."""
 
-    def __init__(self, coordinator: MultimaticDataUpdateCoordinator) -> None:
+    def __init__(self, coordinator: MultimaticCoordinator) -> None:
         """Initialize entity."""
-        super().__init__(coordinator, DOMAIN, coordinator.data.dhw.hotwater.id)
+        super().__init__(coordinator, DOMAIN, coordinator.data.hotwater.id)
         self._operations = {mode.name: mode for mode in HotWater.MODES}
-        self._name = coordinator.data.dhw.hotwater.name
+        self._name = coordinator.data.hotwater.name
 
     @property
     def name(self) -> str:
@@ -59,19 +60,14 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
         return self._name
 
     @property
-    def listening(self):
-        """Return whether this entity is listening for system changes or not."""
-        return True
-
-    @property
     def component(self):
         """Return multimatic component."""
-        return self.coordinator.data.dhw.hotwater
+        return self.coordinator.data.hotwater
 
     @property
     def active_mode(self):
         """Return multimatic component's active mode."""
-        return self.coordinator.data.get_active_mode_hot_water()
+        return self.coordinator.api.get_active_mode(self.component)
 
     @property
     def supported_features(self):
@@ -152,20 +148,24 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         target_temp = float(kwargs.get(ATTR_TEMPERATURE))
-        await self.coordinator.set_hot_water_target_temperature(self, target_temp)
+        await self.coordinator.api.set_hot_water_target_temperature(self, target_temp)
 
     async def async_set_operation_mode(self, operation_mode):
         """Set new target operation mode."""
         if operation_mode in self._operations.keys():
             mode = self._operations[operation_mode]
-            await self.coordinator.set_hot_water_operating_mode(self, mode)
+            await self.coordinator.api.set_hot_water_operating_mode(self, mode)
         else:
             _LOGGER.debug("Operation mode %s is unknown", operation_mode)
 
     async def async_turn_away_mode_on(self):
         """Turn away mode on."""
-        await self.coordinator.set_hot_water_operating_mode(self, OperatingModes.OFF)
+        await self.coordinator.api.set_hot_water_operating_mode(
+            self, OperatingModes.OFF
+        )
 
     async def async_turn_away_mode_off(self):
         """Turn away mode off."""
-        await self.coordinator.set_hot_water_operating_mode(self, OperatingModes.AUTO)
+        await self.coordinator.api.set_hot_water_operating_mode(
+            self, OperatingModes.AUTO
+        )
