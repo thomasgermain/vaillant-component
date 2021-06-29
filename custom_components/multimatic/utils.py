@@ -1,46 +1,51 @@
-"""Utilities for HA."""
-from datetime import timedelta
+"""Utility."""
+from datetime import datetime
 
-from pymultimatic.model import OperatingModes
+from pymultimatic.model import HolidayMode, QuickMode, QuickModes
 
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_SCAN_INTERVAL
-from homeassistant.util import dt
+from .const import COORDINATORS, DOMAIN as MULTIMATIC
 
-from .const import (
-    ATTR_ENDS_AT,
-    ATTR_MULTIMATIC_MODE,
-    ATTR_MULTIMATIC_SETTING,
-    DEFAULT_SCAN_INTERVAL,
-)
+_DATE_FORMAT = "%Y-%m-%d"
 
 
-def gen_state_attrs(component, active_mode):
-    """Generate state_attrs."""
-    attrs = {}
-    attrs.update({ATTR_MULTIMATIC_MODE: active_mode.current.name})
-    if active_mode.sub is not None:
-        attrs.update({ATTR_MULTIMATIC_SETTING: active_mode.sub.name})
-
-    if active_mode.current == OperatingModes.QUICK_VETO:
-        qveto_end = _get_quick_veto_end(component)
-        if qveto_end:
-            attrs.update({ATTR_ENDS_AT: qveto_end.isoformat()})
-    return attrs
+def get_coordinator(hass, key: str, entry_id: str):
+    """Get coordinator from hass data."""
+    return hass.data[MULTIMATIC][entry_id][COORDINATORS][key]
 
 
-def get_scan_interval(entry: ConfigEntry):
-    """Get option scan interval or default."""
-    return timedelta(
-        minutes=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    )
+def holiday_mode_to_json(holiday_mode):
+    """Convert holiday to json."""
+    if holiday_mode and holiday_mode.is_applied:
+        return {
+            "active": True,
+            "start_date": holiday_mode.start_date.strftime(_DATE_FORMAT),
+            "end_date": holiday_mode.end_date.strftime(_DATE_FORMAT),
+            "target": holiday_mode.target,
+        }
+    return None
 
 
-def _get_quick_veto_end(component):
-    end_time = None
-    # there is no remaining duration for zone
-    if component.quick_veto.duration:
-        millis = component.quick_veto.duration * 60 * 1000
-        end_time = dt.now() + timedelta(milliseconds=millis)
-        end_time = end_time.replace(second=0, microsecond=0)
-    return end_time
+def holiday_mode_from_json(str_json) -> HolidayMode:
+    """Convert json to holiday mode."""
+    if str_json:
+        return HolidayMode(
+            str_json["active"],
+            datetime.strptime(str_json["start_date"], _DATE_FORMAT).date(),
+            datetime.strptime(str_json["end_date"], _DATE_FORMAT).date(),
+            str_json["target"],
+        )
+    return HolidayMode(False)
+
+
+def quick_mode_to_json(quick_mode):
+    """Convert quick mode to json."""
+    if quick_mode:
+        return {"name": quick_mode.name, "duration": quick_mode.duration}
+    return None
+
+
+def quick_mode_from_json(str_json) -> QuickMode:
+    """Convert json to quick mode."""
+    if str_json:
+        return QuickModes.get(str_json["name"], str_json["duration"])
+    return None

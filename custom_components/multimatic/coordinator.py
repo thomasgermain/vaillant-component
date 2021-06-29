@@ -1,10 +1,13 @@
 """Api hub and integration data."""
+from __future__ import annotations
+
 from datetime import timedelta
 import logging
 
 from pymultimatic.api import ApiError
 from pymultimatic.model import (
     Circulation,
+    Component,
     HolidayMode,
     HotWater,
     Mode,
@@ -13,77 +16,135 @@ from pymultimatic.model import (
     QuickModes,
     QuickVeto,
     Room,
-    System,
+    Ventilation,
     Zone,
     ZoneCooling,
     ZoneHeating,
 )
 import pymultimatic.systemmanager
+import pymultimatic.utils as multimatic_utils
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_SERIAL_NUMBER,
     DEFAULT_QUICK_VETO_DURATION,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_SMART_PHONE_ID,
-    DOMAIN,
-    REFRESH_ENTITIES_EVENT,
+    HOLIDAY_MODE,
+    QUICK_MODE,
+    REFRESH_EVENT,
+)
+from .utils import (
+    holiday_mode_from_json,
+    holiday_mode_to_json,
+    quick_mode_from_json,
+    quick_mode_to_json,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def check_authentication(hass, username, password, serial):
-    """Check if provided username an password are corrects."""
-    return await pymultimatic.systemmanager.SystemManager(
-        username,
-        password,
-        async_get_clientsession(hass),
-        DEFAULT_SMART_PHONE_ID,
-        serial,
-    ).login(True)
-
-
-class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
-    """multimatic entry point for home-assistant."""
+class MultimaticApi:
+    """Utility to interact with multimatic API."""
 
     def __init__(self, hass, entry: ConfigEntry):
-        """Initialize hub."""
+        """Init."""
+
+        self.serial = entry.data.get(CONF_SERIAL_NUMBER)
+        self.fixed_serial = self.serial is not None
 
         username = entry.data[CONF_USERNAME]
         password = entry.data[CONF_PASSWORD]
-        serial = entry.data.get(CONF_SERIAL_NUMBER)
-
-        super().__init__(
-            hass,
-            _LOGGER,
-            name=DOMAIN,
-            update_interval=timedelta(
-                minutes=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-            ),
-            update_method=self._fetch_data,
-        )
 
         self._manager = pymultimatic.systemmanager.SystemManager(
             user=username,
             password=password,
             session=async_get_clientsession(hass),
-            serial=serial,
+            serial=self.serial,
         )
 
-        self.fixed_serial = serial is not None
+        self._quick_mode: QuickMode | None = None
+        self._holiday_mode: HolidayMode | None = None
+        self._hass = hass
 
-    async def authenticate(self):
-        """Try to authenticate to the API."""
-        try:
-            return await self._manager.login(True)
-        except ApiError as err:
-            await self._log_error(err)
-            return False
+    async def login(self, force):
+        """Login to the API."""
+        return await self._manager.login(force)
+
+    async def logout(self):
+        """Logout from te API."""
+        return await self._manager.logout()
+
+    async def get_gateway(self):
+        """Get the gateway."""
+        return await self._manager.get_gateway()
+
+    async def get_facility_detail(self):
+        """Get facility detail."""
+        detail = await self._manager.get_facility_detail(self.serial)
+        if detail and not self.fixed_serial and not self.serial:
+            self.serial = detail.serial_number
+        return detail
+
+    async def get_zones(self):
+        """Get the zones."""
+        _LOGGER.debug("Will get zones")
+        return await self._manager.get_zones()
+
+    async def get_outdoor_temperature(self):
+        """Get outdoor temperature."""
+        _LOGGER.debug("Will get outdoor temperature")
+        return await self._manager.get_outdoor_temperature()
+
+    async def get_rooms(self):
+        """Get rooms."""
+        _LOGGER.debug("Will get rooms")
+        return await self._manager.get_rooms()
+
+    async def get_ventilation(self):
+        """Get ventilation."""
+        _LOGGER.debug("Will get ventilation")
+        return await self._manager.get_ventilation()
+
+    async def get_dhw(self):
+        """Get domestic hot water.
+
+        There is a 2 queries here, one to ge the dhw and a second one to get the current temperature if
+        there is a water tank.
+        """
+        _LOGGER.debug("Will get dhw")
+        dhw = await self._manager.get_dhw()
+        if dhw and dhw.hotwater and dhw.hotwater.time_program:
+            _LOGGER.debug("Will get temperature report")
+            report = await self._manager.get_live_report(
+                "DomesticHotWaterTankTemperature", "Control_DHW"
+            )
+            dhw.hotwater.temperature = report.value if report else None
+        return dhw
+
+    async def get_live_reports(self):
+        """Get reports."""
+        _LOGGER.debug("Will get reports")
+        return await self._manager.get_live_reports()
+
+    async def get_quick_mode(self):
+        """Get quick modes."""
+        _LOGGER.debug("Will get quick_mode")
+        self._quick_mode = await self._manager.get_quick_mode()
+        return self._quick_mode
+
+    async def get_holiday_mode(self):
+        """Get holiday mode."""
+        _LOGGER.debug("Will get holiday_mode")
+        self._holiday_mode = await self._manager.get_holiday_mode()
+        return self._holiday_mode
+
+    async def get_hvac_status(self):
+        """Get the status of the HVAC."""
+        _LOGGER.debug("Will hvac status")
+        return await self._manager.get_hvac_status()
 
     async def request_hvac_update(self):
         """Request is not on the classic update since it won't fetch data.
@@ -95,90 +156,15 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
             _LOGGER.debug("Will request_hvac_update")
             await self._manager.request_hvac_update()
         except ApiError as err:
-            if err.status == 409:
-                _LOGGER.warning("Request_hvac_update is done too often")
-            else:
-                await self._log_error(err)
-                await self.authenticate()
+            if err.status >= 500:
+                raise
+            _LOGGER.warning("Request_hvac_update is done too often", exc_info=True)
 
-    async def _fetch_data(self):
-        """Fetch multimatic system."""
-
-        try:
-            system = await self._manager.get_system()
-            _LOGGER.debug("fetch_data successful")
-            return system
-        except ApiError as err:
-            await self._log_error(err)
-            if err.status < 500:
-                await self._manager.logout()
-                await self.authenticate()
-            raise
-
-    async def logout(self):
-        """Logout from API."""
-
-        try:
-            await self._manager.logout()
-        except ApiError:
-            _LOGGER.warning("Cannot logout from multimatic API", exc_info=True)
-            return False
-        return True
-
-    @staticmethod
-    async def _log_error(api_err, exec_info=True):
-        if api_err.status == 409:
-            _LOGGER.warning(
-                "Multimatic API: %s, status: %s, response: %s",
-                api_err.message,
-                api_err.status,
-                api_err.response,
-            )
-        else:
-            _LOGGER.error(
-                "Error with multimatic API: %s, status: %s, response: %s",
-                api_err.message,
-                api_err.status,
-                api_err.response,
-                exc_info=exec_info,
-            )
-
-    def find_component(self, comp):
-        """Find a component in the system with the given id, no IO is done."""
-
-        if isinstance(comp, Zone):
-            return self.get_zone(comp.id)
-        if isinstance(comp, Room):
-            return self.get_room(comp.id)
-        if isinstance(comp, HotWater):
-            if self.data.dhw.hotwater and self.data.dhw.hotwater.id == comp.id:
-                return self.data.dhw.hotwater
-        if isinstance(comp, Circulation):
-            if self.data.dhw.circulation and self.data.dhw.circulation.id == comp.id:
-                return self.data.dhw.circulation
-
-        return None
-
-    def get_room(self, room_id):
-        """Get room by id."""
-        return next((room for room in self.data.rooms if room.id == room_id), None)
-
-    def get_room_device(self, sgtin):
-        """Get device of a room."""
-        for room in self.data.rooms:
-            for device in room.devices:
-                if device.sgtin == sgtin:
-                    return device
-
-    def get_report(self, report_id):
-        """Get report id."""
-        return next(
-            (report for report in self.data.reports if report.id == report_id), None
+    def get_active_mode(self, comp: Component):
+        """Get active mode for room, zone, circulation, ventilaton or hotwater, no IO."""
+        return multimatic_utils.active_mode_for(
+            comp, self._holiday_mode, self._quick_mode
         )
-
-    def get_zone(self, zone_id):
-        """Get zone by id."""
-        return next((zone for zone in self.data.zones if zone.id == zone_id), None)
 
     async def set_hot_water_target_temperature(self, entity, target_temp):
         """Set hot water target temperature.
@@ -192,18 +178,17 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
         """
 
         hotwater = entity.component
-
         touch_system = await self._remove_quick_mode_or_holiday(entity)
-
-        current_mode = self.data.get_active_mode_hot_water(hotwater).current
+        current_mode = self.get_active_mode(hotwater).current
 
         if current_mode == OperatingModes.OFF:
             await self._manager.set_hot_water_operating_mode(
                 hotwater.id, OperatingModes.ON
             )
+            hotwater.operating_mode = OperatingModes.ON
         await self._manager.set_hot_water_setpoint_temperature(hotwater.id, target_temp)
+        hotwater.target_high = target_temp
 
-        self.data.hot_water = hotwater
         await self._refresh(touch_system, entity)
 
     async def set_room_target_temperature(self, entity, target_temp):
@@ -220,7 +205,7 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
         touch_system = await self._remove_quick_mode_or_holiday(entity)
 
         room = entity.component
-        current_mode = self.data.get_active_mode_room(room).current
+        current_mode = self.get_active_mode(room).current
 
         if current_mode == OperatingModes.MANUAL:
             await self._manager.set_room_setpoint_temperature(room.id, target_temp)
@@ -232,7 +217,6 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
             qveto = QuickVeto(DEFAULT_QUICK_VETO_DURATION, target_temp)
             await self._manager.set_room_quick_veto(room.id, qveto)
             room.quick_veto = qveto
-        self.data.set_room(room.id, room)
 
         await self._refresh(touch_system, entity)
 
@@ -250,7 +234,8 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
 
         touch_system = await self._remove_quick_mode_or_holiday(entity)
         zone = entity.component
-        current_mode = self.data.get_active_mode_zone(zone).current
+
+        current_mode = self.get_active_mode(zone).current
 
         if current_mode == OperatingModes.QUICK_VETO:
             await self._manager.remove_zone_quick_veto(zone.id)
@@ -259,7 +244,6 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
         await self._manager.set_zone_quick_veto(zone.id, veto)
         zone.quick_veto = veto
 
-        self.data.set_zone(zone.id, zone)
         await self._refresh(touch_system, entity)
 
     async def set_hot_water_operating_mode(self, entity, mode):
@@ -274,7 +258,6 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
         await self._manager.set_hot_water_operating_mode(hotwater.id, mode)
         hotwater.operating_mode = mode
 
-        self.data.dhw.hotwater = hotwater
         await self._refresh(touch_system, entity)
 
     async def set_room_operating_mode(self, entity, mode):
@@ -291,13 +274,12 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
 
         if isinstance(mode, QuickMode):
             await self._manager.set_quick_mode(mode)
-            self.data.quick_mode = mode
+            self._quick_mode = mode
             touch_system = True
         else:
             await self._manager.set_room_operating_mode(room.id, mode)
             room.operating_mode = mode
 
-        self.data.set_room(room.id, room)
         await self._refresh(touch_system, entity)
 
     async def set_zone_operating_mode(self, entity, mode):
@@ -315,7 +297,7 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
 
         if isinstance(mode, QuickMode):
             await self._manager.set_quick_mode(mode)
-            self.data.quick_mode = mode
+            self._quick_mode = mode
             touch_system = True
         else:
             if zone.heating and mode in ZoneHeating.MODES:
@@ -325,7 +307,6 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
                 await self._manager.set_zone_cooling_operating_mode(zone.id, mode)
                 zone.cooling.operating_mode = mode
 
-        self.data.set_zone(zone.id, zone)
         await self._refresh(touch_system, entity)
 
     async def remove_quick_mode(self, entity=None):
@@ -345,23 +326,20 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
     async def set_holiday_mode(self, start_date, end_date, temperature):
         """Set holiday mode."""
         await self._manager.set_holiday_mode(start_date, end_date, temperature)
-        self.data.holiday = HolidayMode(True, start_date, end_date, temperature)
+        self._holiday_mode = HolidayMode(True, start_date, end_date, temperature)
         await self._refresh_entities()
 
     async def set_quick_mode(self, mode):
         """Set quick mode (remove previous one)."""
-        try:
-            await self._remove_quick_mode_no_refresh()
-            qmode = QuickModes.get(mode)
-            await self._manager.set_quick_mode(qmode)
-            self.data.quick_mode = qmode
-            await self._refresh_entities()
-        except ApiError as err:
-            await self._log_error(err)
+        await self._remove_quick_mode_no_refresh()
+        qmode = QuickModes.get(mode)
+        await self._manager.set_quick_mode(qmode)
+        self._quick_mode = qmode
+        await self._refresh_entities()
 
     async def set_quick_veto(self, entity, temperature, duration=None):
         """Set quick veto for the given entity."""
-        comp = self.find_component(entity.component)
+        comp = entity.component
 
         q_duration = duration if duration else DEFAULT_QUICK_VETO_DURATION
         qveto = QuickVeto(q_duration, temperature)
@@ -379,7 +357,7 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
 
     async def remove_quick_veto(self, entity):
         """Remove quick veto for the given entity."""
-        comp = self.find_component(entity.component)
+        comp = entity.component
 
         if comp and comp.quick_veto:
             if isinstance(comp, Zone):
@@ -396,24 +374,24 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
 
         if isinstance(mode, QuickMode):
             await self._manager.set_quick_mode(mode)
-            self.data.quick_mode = mode
+            self._quick_mode = mode
             touch_system = True
         else:
             await self._manager.set_ventilation_operating_mode(
-                self.data.ventilation.id, mode
+                entity.component.id, mode
             )
-            self.data.ventilation.operating_mode = mode
+            entity.component.operating_mode = mode
         await self._refresh(touch_system, entity)
 
     async def _remove_quick_mode_no_refresh(self, entity=None):
         removed = False
 
-        qmode = self.data.quick_mode
+        qmode = self._quick_mode
         if entity and qmode:
             if qmode.is_for(entity.component):
                 await self._hard_remove_quick_mode()
                 removed = True
-        else:
+        else:  # coming from service call
             await self._hard_remove_quick_mode()
             removed = True
 
@@ -421,16 +399,12 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
 
     async def _hard_remove_quick_mode(self):
         await self._manager.remove_quick_mode()
-        self.data.quick_mode = None
+        self._quick_mode = None
 
     async def _remove_holiday_mode_no_refresh(self):
-        removed = False
-
-        if self.data.holiday is not None and self.data.holiday.is_applied:
-            removed = True
-            await self._manager.remove_holiday_mode()
-            self.data.holiday = HolidayMode(False)
-        return removed
+        await self._manager.remove_holiday_mode()
+        self._holiday_mode = HolidayMode(False)
+        return True
 
     async def _remove_quick_mode_or_holiday(self, entity):
         return (
@@ -440,10 +414,99 @@ class MultimaticDataUpdateCoordinator(DataUpdateCoordinator[System]):
 
     async def _refresh_entities(self):
         """Fetch multimatic data and force refresh of all listening entities."""
-        self.hass.bus.async_fire(REFRESH_ENTITIES_EVENT, {})
+        data = {
+            QUICK_MODE: quick_mode_to_json(self._quick_mode),
+            HOLIDAY_MODE: holiday_mode_to_json(self._holiday_mode),
+        }
+        self._hass.bus.async_fire(REFRESH_EVENT, data)
 
     async def _refresh(self, touch_system, entity):
         if touch_system:
             await self._refresh_entities()
-        if entity and not entity.listening:
-            entity.async_schedule_update_ha_state(True)
+        entity.async_schedule_update_ha_state(True)
+
+
+class MultimaticCoordinator(DataUpdateCoordinator):
+    """Multimatic coordinator."""
+
+    def __init__(
+        self,
+        hass,
+        name,
+        api: MultimaticApi,
+        method: str,
+        update_interval: timedelta | None,
+    ):
+        """Init."""
+
+        self._api_listeners: set = set()
+        self._method = method
+        self.api: MultimaticApi = api
+
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=name,
+            update_interval=update_interval,
+            update_method=self._first_fetch_data,
+        )
+
+        self._remove_listener = self.hass.bus.async_listen(
+            REFRESH_EVENT, self._handle_event
+        )
+
+    def find_component(
+        self, comp_id
+    ) -> Room | Zone | Ventilation | HotWater | Circulation:
+        """Find component by it's id."""
+        for comp in self.data:
+            if comp.id == comp_id:
+                return comp
+        return None
+
+    def remove_api_listener(self, unique_id: str):
+        """Remove entity from listening to the api."""
+        if unique_id in self._api_listeners:
+            self.logger.debug("Removing %s from %s", unique_id, self._method)
+            self._api_listeners.remove(unique_id)
+
+    def add_api_listener(self, unique_id: str):
+        """Make an entity listen to API."""
+        if unique_id not in self._api_listeners:
+            self.logger.debug("Adding %s to key %s", unique_id, self._method)
+            self._api_listeners.add(unique_id)
+
+    async def _handle_event(self, event):
+        if isinstance(self.data, QuickMode):
+            quick_mode = quick_mode_from_json(event.data.get(QUICK_MODE))
+            self.async_set_updated_data(quick_mode)
+        elif isinstance(self.data, HolidayMode):
+            holiday_mode = holiday_mode_from_json(event.data.get(HOLIDAY_MODE))
+            self.async_set_updated_data(holiday_mode)
+        else:
+            self.async_set_updated_data(
+                self.data
+            )  # Fake refresh for climates and water heater and fan
+
+    async def _fetch_data(self):
+        try:
+            self.logger.debug("calling %s", self._method)
+            return await getattr(self.api, self._method)()
+        except ApiError:
+            await self._safe_logout()
+            raise
+
+    async def _fetch_data_if_needed(self):
+        if self._api_listeners and len(self._api_listeners) > 0:
+            return await self._fetch_data()
+
+    async def _first_fetch_data(self):
+        result = await self._fetch_data()
+        self.update_method = self._fetch_data_if_needed
+        return result
+
+    async def _safe_logout(self):
+        try:
+            await self.api.logout()
+        except ApiError:
+            self.logger.debug("Error during logout", exc_info=True)

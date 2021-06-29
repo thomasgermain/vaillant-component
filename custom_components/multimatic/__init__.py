@@ -1,13 +1,21 @@
 """The multimatic integration."""
 import asyncio
+from datetime import timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 
-from .const import COORDINATOR, DOMAIN, PLATFORMS, SERVICES_HANDLER
-from .coordinator import MultimaticDataUpdateCoordinator
+from .const import (
+    COORDINATOR_LIST,
+    COORDINATORS,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    PLATFORMS,
+    SERVICES_HANDLER,
+)
+from .coordinator import MultimaticApi, MultimaticCoordinator
 from .service import SERVICES, MultimaticServiceHandler
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,20 +29,37 @@ async def async_setup(hass: HomeAssistant, config: dict):
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up multimatic from a config entry."""
 
-    api: MultimaticDataUpdateCoordinator = MultimaticDataUpdateCoordinator(hass, entry)
-    await api.authenticate()
-    await api.async_refresh()
+    api: MultimaticApi = MultimaticApi(hass, entry)
 
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault(entry.unique_id, {})
-    hass.data[DOMAIN][entry.unique_id][COORDINATOR] = api
+    hass.data[DOMAIN][entry.unique_id].setdefault(COORDINATORS, {})
+
+    for coord in COORDINATOR_LIST.items():
+        update_interval = (
+            coord[1]
+            if coord[1]
+            else timedelta(
+                minutes=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+            )
+        )
+        m_coord = MultimaticCoordinator(
+            hass,
+            name=f"{DOMAIN}_{coord[0]}",
+            api=api,
+            method="get_" + coord[0],
+            update_interval=update_interval,
+        )
+        hass.data[DOMAIN][entry.unique_id][COORDINATORS][coord[0]] = m_coord
+        await m_coord.async_config_entry_first_refresh()
+        _LOGGER.debug("Adding %s coordinator", m_coord.name)
 
     for platform in PLATFORMS:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, platform)
         )
 
-    async def logout(param):
+    async def logout(event):
         await api.logout()
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, logout)
@@ -44,7 +69,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_setup_service(api: MultimaticDataUpdateCoordinator, hass):
+async def async_setup_service(api: MultimaticApi, hass):
     """Set up services."""
     if not hass.data.get(SERVICES_HANDLER):
         service_handler = MultimaticServiceHandler(api, hass)

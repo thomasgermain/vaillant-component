@@ -13,9 +13,10 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import TEMP_CELSIUS
 
-from . import MultimaticDataUpdateCoordinator
-from .const import COORDINATOR, DOMAIN as MULTIMATIC
+from .const import OUTDOOR_TEMP, REPORTS
+from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
+from .utils import get_coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,15 +30,14 @@ UNIT_TO_DEVICE_CLASS = {
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up the multimatic sensors."""
     sensors = []
-    coordinator = hass.data[MULTIMATIC][entry.unique_id][COORDINATOR]
+    outdoor_temp_coo = get_coordinator(hass, OUTDOOR_TEMP, entry.unique_id)
+    reports_coo = get_coordinator(hass, REPORTS, entry.unique_id)
 
-    if coordinator.data:
-        if coordinator.data.outdoor_temperature:
-            sensors.append(OutdoorTemperatureSensor(coordinator))
+    if outdoor_temp_coo.data:
+        sensors.append(OutdoorTemperatureSensor(outdoor_temp_coo))
 
-        sensors.extend(
-            ReportSensor(coordinator, report) for report in coordinator.data.reports
-        )
+    if reports_coo.data:
+        sensors.extend(ReportSensor(reports_coo, report) for report in reports_coo.data)
 
     _LOGGER.info("Adding %s sensor entities", len(sensors))
 
@@ -48,21 +48,19 @@ async def async_setup_entry(hass, entry, async_add_entities):
 class OutdoorTemperatureSensor(MultimaticEntity):
     """Outdoor temperature sensor."""
 
-    def __init__(self, coordinator: MultimaticDataUpdateCoordinator) -> None:
+    def __init__(self, coordinator: MultimaticCoordinator) -> None:
         """Initialize entity."""
         super().__init__(coordinator, DOMAIN, "outdoor_temperature")
 
     @property
     def state(self):
         """Return the state of the entity."""
-        return self.coordinator.data.outdoor_temperature
+        return self.coordinator.data
 
     @property
     def available(self):
         """Return True if entity is available."""
-        return (
-            super().available and self.coordinator.data.outdoor_temperature is not None
-        )
+        return super().available and self.coordinator.data is not None
 
     @property
     def unit_of_measurement(self):
@@ -83,9 +81,7 @@ class OutdoorTemperatureSensor(MultimaticEntity):
 class ReportSensor(MultimaticEntity):
     """Report sensor."""
 
-    def __init__(
-        self, coordinator: MultimaticDataUpdateCoordinator, report: Report
-    ) -> None:
+    def __init__(self, coordinator: MultimaticCoordinator, report: Report) -> None:
         """Init entity."""
         MultimaticEntity.__init__(self, coordinator, DOMAIN, report.id)
         self._report_id = report.id
@@ -98,7 +94,14 @@ class ReportSensor(MultimaticEntity):
     @property
     def report(self):
         """Get the current report based on the id."""
-        return self.coordinator.get_report(self._report_id)
+        return next(
+            (
+                report
+                for report in self.coordinator.data
+                if report.id == self._report_id
+            ),
+            None,
+        )
 
     @property
     def state(self):
@@ -119,13 +122,7 @@ class ReportSensor(MultimaticEntity):
     def device_info(self):
         """Return device specific attributes."""
         return {
-            "identifiers": {
-                (
-                    DOMAIN,
-                    self._device_id,
-                    self.coordinator.data.info.serial_number,
-                )
-            },
+            "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device_name,
             "manufacturer": "Vaillant",
         }

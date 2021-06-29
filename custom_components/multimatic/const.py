@@ -1,6 +1,9 @@
 """multimatic integration constants."""
 
-# constants used in hass.data
+from __future__ import annotations
+
+from datetime import timedelta
+
 DOMAIN = "multimatic"
 ENTITIES = "entities"
 
@@ -33,8 +36,6 @@ CONF_QUICK_VETO_DURATION = "quick_veto_duration"
 CONF_SERIAL_NUMBER = "serial_number"
 
 # constants for states_attributes
-# ATTR_MULTIMATIC_SETTING = "setting"
-# ATTR_ENDS_AT = "ends_at"
 ATTR_QUICK_MODE = "quick_mode"
 ATTR_START_DATE = "start_date"
 ATTR_END_DATE = "end_date"
@@ -42,6 +43,32 @@ ATTR_TEMPERATURE = "temperature"
 ATTR_DURATION = "duration"
 
 SERVICES_HANDLER = "services_handler"
-COORDINATOR = "coordinator"
 
-REFRESH_ENTITIES_EVENT = "multimatic_refresh_entities"
+REFRESH_EVENT = "multimatic_refresh_event"
+
+# Update api keys
+ZONES = "zones"
+ROOMS = "rooms"
+DHW = "dhw"
+REPORTS = "live_reports"
+OUTDOOR_TEMP = "outdoor_temperature"
+VENTILATION = "ventilation"
+QUICK_MODE = "quick_mode"
+HOLIDAY_MODE = "holiday_mode"
+HVAC_STATUS = "hvac_status"
+FACILITY_DETAIL = "facility_detail"
+GATEWAY = "gateway"
+COORDINATORS = "coordinators"
+COORDINATOR_LIST: dict[str, timedelta | None] = {
+    ZONES: None,
+    ROOMS: None,
+    DHW: None,
+    REPORTS: None,
+    OUTDOOR_TEMP: None,
+    VENTILATION: None,
+    QUICK_MODE: None,
+    HOLIDAY_MODE: None,
+    HVAC_STATUS: None,
+    FACILITY_DETAIL: timedelta(days=1),
+    GATEWAY: timedelta(days=1),
+}
