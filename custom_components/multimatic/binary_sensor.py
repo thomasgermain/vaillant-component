@@ -193,6 +193,11 @@ class RoomDeviceEntity(MultimaticEntity, BinarySensorEntity):
                     return device
         return None
 
+    @property
+    def name(self) -> str | None:
+        """Return the name of the entity."""
+        return f"{self.device.name} {self.device_class}"
+
 
 class RoomDeviceChildLock(RoomDeviceEntity):
     """Binary sensor for valve child lock.

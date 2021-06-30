@@ -329,10 +329,12 @@ class MultimaticApi:
         self._holiday_mode = HolidayMode(True, start_date, end_date, temperature)
         await self._refresh_entities()
 
-    async def set_quick_mode(self, mode):
+    async def set_quick_mode(self, mode, duration):
         """Set quick mode (remove previous one)."""
         await self._remove_quick_mode_no_refresh()
-        qmode = QuickModes.get(mode)
+        if duration is None and mode == QuickModes.COOLING_FOR_X_DAYS.name:
+            duration = 1
+        qmode = QuickModes.get(mode, duration)
         await self._manager.set_quick_mode(qmode)
         self._quick_mode = qmode
         await self._refresh_entities()
@@ -501,9 +503,13 @@ class MultimaticCoordinator(DataUpdateCoordinator):
             return await self._fetch_data()
 
     async def _first_fetch_data(self):
-        result = await self._fetch_data()
-        self.update_method = self._fetch_data_if_needed
-        return result
+        try:
+            result = await self._fetch_data()
+            self.update_method = self._fetch_data_if_needed
+            return result
+        except ApiError as err:
+            if err.status != 409:
+                raise
 
     async def _safe_logout(self):
         try:

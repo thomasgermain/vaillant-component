@@ -10,6 +10,9 @@ set_quick_mode:
     quick_mode:
       description: Name of the quick mode (required)
       example: QM_HOTWATER_BOOST, QM_VENTILATION_BOOST, QM_ONE_DAY_AWAY, QM_SYSTEM_OFF, QM_ONE_DAY_AT_HOME, QM_PARTY
+    duration:
+      description: (int) number of days the quick mode should last
+      example: 3
 
 set_holiday_mode:
   description: Set holiday mode
