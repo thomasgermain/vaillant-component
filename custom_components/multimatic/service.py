@@ -36,7 +36,12 @@ SERVICE_REMOVE_QUICK_VETO_SCHEMA = vol.Schema(
     {vol.Required(ATTR_ENTITY_ID): vol.All(vol.Coerce(str))}
 )
 SERVICE_SET_QUICK_MODE_SCHEMA = vol.Schema(
-    {vol.Required(ATTR_QUICK_MODE): vol.All(vol.Coerce(str), vol.In(QUICK_MODES_LIST))}
+    {
+        vol.Required(ATTR_QUICK_MODE): vol.All(
+            vol.Coerce(str), vol.In(QUICK_MODES_LIST)
+        ),
+        vol.Optional(ATTR_DURATION): vol.All(vol.Coerce(int), vol.Clamp(min=1)),
+    }
 )
 SERVICE_SET_HOLIDAY_MODE_SCHEMA = vol.Schema(
     {
@@ -120,7 +125,8 @@ class MultimaticServiceHandler:
     async def set_quick_mode(self, data):
         """Set quick mode, it may impact the whole system."""
         quick_mode = data.get(ATTR_QUICK_MODE, None)
-        await self.api.set_quick_mode(quick_mode)
+        duration = data.get(ATTR_DURATION, None)
+        await self.api.set_quick_mode(quick_mode, duration)
 
     async def request_hvac_update(self, data):
         """Ask multimatic API to get data from the installation."""

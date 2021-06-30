@@ -51,8 +51,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
             update_interval=update_interval,
         )
         hass.data[DOMAIN][entry.unique_id][COORDINATORS][coord[0]] = m_coord
-        await m_coord.async_config_entry_first_refresh()
         _LOGGER.debug("Adding %s coordinator", m_coord.name)
+        await m_coord.async_config_entry_first_refresh()
 
     for platform in PLATFORMS:
         hass.async_create_task(
