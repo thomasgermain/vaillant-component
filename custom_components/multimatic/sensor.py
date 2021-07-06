@@ -125,6 +125,7 @@ class ReportSensor(MultimaticEntity):
             "identifiers": {(DOMAIN, self._device_id)},
             "name": self._device_name,
             "manufacturer": "Vaillant",
+            "model": self.report.device_id,
         }
 
     @property

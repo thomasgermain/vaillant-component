@@ -370,6 +370,7 @@ class ZoneClimate(MultimaticClimate):
         HVAC_MODE_AUTO: OperatingModes.AUTO,
         HVAC_MODE_OFF: OperatingModes.OFF,
         HVAC_MODE_FAN_ONLY: QuickModes.VENTILATION_BOOST,
+        HVAC_MODE_COOL: QuickModes.COOLING_FOR_X_DAYS,
     }
 
     _HA_PRESET_TO_MULTIMATIC = {
@@ -396,6 +397,7 @@ class ZoneClimate(MultimaticClimate):
         if not zone.cooling:
             self._supported_presets.remove(PRESET_COOLING_ON)
             self._supported_presets.remove(PRESET_COOLING_FOR_X_DAYS)
+            self._supported_hvac.remove(HVAC_MODE_COOL)
 
         if not ventilation:
             self._supported_hvac.remove(HVAC_MODE_FAN_ONLY)
@@ -406,7 +408,7 @@ class ZoneClimate(MultimaticClimate):
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return entity specific state attributes."""
         attr = {}
-        if self.active_mode == QuickModes.COOLING_FOR_X_DAYS:
+        if self.active_mode.current == QuickModes.COOLING_FOR_X_DAYS:
             attr.update(
                 {"cooling_for_x_days_duration": self.active_mode.current.duration}
             )
@@ -435,11 +437,11 @@ class ZoneClimate(MultimaticClimate):
             ):
                 return HVAC_MODE_HEAT
             if (
-                self.preset_mode == PRESET_COOLING_ON
+                self.preset_mode in (PRESET_COOLING_ON, PRESET_COOLING_FOR_X_DAYS)
                 and self.hvac_action == CURRENT_HVAC_COOL
             ):
                 return HVAC_MODE_COOL
-        return hvac_mode
+        return hvac_mode if hvac_mode else HVAC_MODE_OFF
 
     @property
     def hvac_modes(self) -> list[str]:

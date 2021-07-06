@@ -18,6 +18,7 @@ from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.util import slugify
 
 from .const import (
+    ATTR_DURATION,
     DHW,
     DOMAIN as MULTIMATIC,
     FACILITY_DETAIL,
@@ -517,8 +518,12 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
     @property
     def state_attributes(self):
         """Return the state attributes."""
+        attrs = {}
         if self.is_on:
-            return {"quick_mode": self.coordinator.data.name}
+            attrs = {"quick_mode": self.coordinator.data.name}
+            if self.coordinator.data.duration:
+                attrs.update({ATTR_DURATION: self.coordinator.data.duration})
+        return attrs
 
     @property
     def name(self):
