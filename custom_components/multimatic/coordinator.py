@@ -508,7 +508,16 @@ class MultimaticCoordinator(DataUpdateCoordinator):
             self.update_method = self._fetch_data_if_needed
             return result
         except ApiError as err:
-            if err.status != 409:
+            if err.status in (400, 409):
+                self.update_method = self._fetch_data_if_needed
+                _LOGGER.debug(
+                    "Received %s %s when calling %s for the first time",
+                    err.response,
+                    err.message,
+                    self.name,
+                    exc_info=True,
+                )
+            else:
                 raise
 
     async def _safe_logout(self):
