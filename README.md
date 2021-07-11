@@ -1,128 +1,28 @@
-# multimatic-component
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/thomasgermain/vaillant-component?style=for-the-badge)
 
-**Please note that this component is still in beta test, so I may do (unwanted) breaking changes.**
+# Multimatic integration
+
+**Please note that this integration is still in beta test, so I may do (unwanted) breaking changes.**
 
 Ideas are welcome ! Don't hesitate to create issue to suggest something, it will be really appreciated.
+
+**This integration is NOT compatible with sensoAPP, only with multiMATIC app.**
 
 ## Installations
 - Through HACS [custom repositories](https://hacs.xyz/docs/faq/custom_repositories/) !
 - Otherwise, download the zip from the latest release and copy `multimatic` folder and put it inside your `custom_components` folder.
 
 You can configure it through the UI using integration.
-You have to provided your username and password (same as multimatic app)
+You have to provide your username and password (same as multimatic app), if you have multiple serial numbers, you can choose for which number serial number you want the integration.
+You can create multiple instance of the integration with different serial number (**This is still a beta feature**).
 
 **It is strongly recommended using a dedicated user for HA**, for 2 reasons:
-- As usual for security reason, if your HA got compromise somehow, you know which user to block
+- As usual for security reason, if your HA got compromised somehow, you know which user to block
 - I cannot confirm it, but it seems multimatic API only accept the same user to be connected at the same time
 
-
-## Releases
-### [1.0.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.0.0)
-First release using config flow
-### [1.1.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.1.0)
-- Move everything to async
-- Bugfix for circulation (no considered `on` when hot water boost was activated)
-- Removed boiler temperature and boiler water pressure in favor of `report` entity (breaking change)
-- Better error handling
-- Automatic re-authentication in case of error
-### [1.2.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.0)
-- Adding a way to specify serial number in case you have multiple
-- some error log improvement/fix
-- adding some none check
-### [1.2.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.1)
-- warning log fix
-### [1.2.2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.2)
-- Better error handling
-- Component does a reconnection every time an error occurs
-### [1.2.3](https://github.com/thomasgermain/vaillant-component/releases/tag/1.2.3)
-- Adapt to HA 0.110 deprecation/warning
-- Add some None-check in case of error when component is starting
-- Fix issue with `set_holiday_mode` (ValueError: unconverted data remains: T00:00:00.000Z)
-### [1.3.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.0)
-- `request hvac update` is not done by the component automatically. Instead, there is a new service `request_hvac_update`. 
-If you have any issue with refresh time of the data, you can use an automation to call the service. **I recommend to do it very 1 hour**. If you really hove data refresh issue, you can do down until every 30min. Doing it more often will likely end up in an error at vaillant API. 
-You can use something like this as automation:
-```yaml
-- id: "Refresh multimatic data"
-  alias: "Refresh multimatic data"
-  trigger:
-    - platform: time_pattern
-      hours: "/1"
-  action:
-    - service: multimatic.request_hvac_update
-```
-### [1.3.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.1)
-- check if a zone is enabled before creating a climate entity.
-### [1.3.2](https://github.com/thomasgermain/vaillant-component/releases/tag/1.3.2)
-- Fix the way the dynamic errors (coming from the API) are refreshed in order to have entities created/removed dynamically without restarting HA
-
-### [1.4.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.4.0)
-- Supporting cooling
-- **BREAKING CHANGES** on vaillant mode <> hvac mode & preset mode, please see `Expected behavior` below
-
-
-### [1.5.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0)
-**BREAKING CHANGES** Foreseen some time for the migration:
-- Renaming integration from `vaillant` to `multimatic`
-- entity_id doesn't contain anymore the domain (e.g: `climate.vaillant_bathroom` becomes `climate.bathroom`). 
-  Only few entities keep  the domain inside their id (`quick_mode`, `holiday`, `system_online`, `system_update` and `errors`),
-  otherwise, the name is too generic
-- Services are also renamed from `vailant.xxx` to `multimatic.xxx`
-- Add `multimatic` in unique_id in order to avoid collision
-- Dynamic errors are removed in favor of a single binary_sensor (`binary_sensor.multimatic_errors`). This is 
-  much easier to create an automation
-
-**Other changes:**
-- Moving to `DataUpdateCoordinator`
-- Allowing multiple instance of the integration
-- IO optimization when quick mode or holiday mode is changing.
-- Add scan interval option
-- Fix error when a live report is not available from the API anymore
-- Add fan support
-- Fix for room climate to detect if the room is heating or not
-- Add `version` in the manifest (for HA 2021.4.x)
-
-**You may sometimes see (around 3:30 am) an error like the following. 
-It seems the API server is restarted every night, so the integration can't fetch data.
-I can't do anything about that.**
-```
-Unable to fetch data from multimatic, API says:`xxx Service Unavailable, status: xxx
-```
-
-**How to migrate ?**
-1) Delete `vaillant` integration from HA UI
-2) Delete `vaillant` folder from `custom_component`
-3) Copy `multimatic` folder (from [1.5.0 release](https://github.com/thomasgermain/vaillant-component/releases/tag/1.5.0))
-and past it to `custom_component`
-4) Restart HA
-5) Add `multimatic` integration from HA UI
-6) The hard job is starting now, you have to find old entity_id you were using in automation or somewhere else. 
-You can do some find and replace (e.g. `climate.vaillant_bathroom`-> `climate.bathroom`)
-
-### [1.6.0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.6.0)
-- Supporting HACS (only by custom repository right now). Please be sure to install at least version 1.6.0). See https://hacs.xyz/docs/faq/custom_repositories/ for installations.
-
-### [1.6.1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.6.1)
-- Logos (will be available after next HA release)
-- Version alignment between releases and manifest
-- Integration into the HACS default repositories 
-- Special thanks to [@vit-](https://github.com/vit-)
-
-### [1.7.0b0](https://github.com/thomasgermain/vaillant-component/releases/tag/1.7.0b0)
-- **BREAKING CHANGE**: improvements of the `unique_id` of some entities (but not the `entity_id`).
-  You may have to delete old entities which will be unavailable 
-  and change the `entity_id` of newly created entities (because they may have `entity_id` like xxx_2) 
-- Names and units of sensors are None safe
-- Many technical improvements on entity updates
-- Better handling and logging in case of error
-- Update pymultimatic to 0.4.x (= improvement in handling wrong responses coming from the API)
-
-### [1.7.0b1](https://github.com/thomasgermain/vaillant-component/releases/tag/1.7.0b1)
-- Code quality improvement
-- Remove some incorrect `device_class`
-- None safe `name`, `unit_of_measurement`, etc.
-- Better logging in case of error
-
+## Changelog
+See [releases details](https://github.com/thomasgermain/vaillant-component/releases)
 ## Provided entities
 - 1 water_heater entity, if any water heater: `water_heater.<water heater id>`, basically `water_heater.control_dhw`
 - 1 climate entity per zone (expect if the zone is controlled by room) `climate.<zone id>`
@@ -194,16 +94,19 @@ On **zone** climate:
 - Changing temperature will lead to a quick veto with selected temperature for 6 hours (quick veto duration is not configurable for a zone)
 
 Modes mapping:
-- `AUTO` -> `HVAC_MODE_AUTO` & `PRESET_COMFORT`
-- `DAY`: no hvac & `PRESET_DAY` (custom)
-- `NIGHT`: no hvac & `PRESET_SLEEP`
-- `OFF` -> `HVAC_MODE_OFF` & no preset
-- `ON` (= cooling ON) -> no hvac & `PRESET_COOLING_ON` (custom)
-- `QUICK_VETO` -> no hvac & `PRESET_QUICK_VETO` (custom)
-- `QM_ONE_DAY_AT_HOME` -> HVAC_MODE_AUTO & `PRESET_HOME`
-- `QM_PARTY` -> no hvac & `PRESET_PARTY` (custom)
-- `QM_VENTILATION_BOOST` -> `HVAC_MODE_FAN_ONLY` & no preset
-- `QM_ONE_DAY_AWAY` -> `HVAC_MODE_OFF` & `PRESET_AWAY`
-- `QM_SYSTEM_OFF` -> `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)
-- `HOLIDAY` -> `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)
-- `QM_COOLING_FOR_X_DAYS` -> no hvac & `PRESET_COOLING_FOR_X_DAYS`
+	
+| Vaillant Mode | HA Mode |
+| ------------- |-------- |
+| AUTO | `HVAC_MODE_AUTO` & `PRESET_COMFORT` |
+| DAY | no hvac & `PRESET_DAY` (custom) |
+| NIGHT | no hvac & `PRESET_SLEEP` |
+| OFF | `HVAC_MODE_OFF` & no preset |
+| ON (= cooling ON) | no hvac & `PRESET_COOLING_ON` (custom) |
+| QUICK_VETO | no hvac & `PRESET_QUICK_VETO` (custom) |
+| QM_ONE_DAY_AT_HOME | HVAC_MODE_AUTO & `PRESET_HOME` |
+| QM_PARTY | no hvac & `PRESET_PARTY` (custom) |
+| QM_VENTILATION_BOOST | `HVAC_MODE_FAN_ONLY` & no preset |
+| QM_ONE_DAY_AWAY | `HVAC_MODE_OFF` & `PRESET_AWAY` |
+| QM_SYSTEM_OFF | `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom) |
+| HOLIDAY | `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom) |
+| QM_COOLING_FOR_X_DAYS | no hvac & `PRESET_COOLING_FOR_X_DAYS` |
