@@ -52,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         )
         hass.data[DOMAIN][entry.unique_id][COORDINATORS][coord[0]] = m_coord
         _LOGGER.debug("Adding %s coordinator", m_coord.name)
-        await m_coord.async_config_entry_first_refresh()
+        await m_coord.async_refresh()
 
     for platform in PLATFORMS:
         hass.async_create_task(
@@ -94,10 +94,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
     unload_ok = all(
         await asyncio.gather(
-            *[
+            *(
                 hass.config_entries.async_forward_entry_unload(entry, component)
                 for component in PLATFORMS
-            ]
+            )
         )
     )
     if unload_ok:
