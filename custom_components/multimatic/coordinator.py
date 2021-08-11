@@ -143,8 +143,13 @@ class MultimaticApi:
 
     async def get_hvac_status(self):
         """Get the status of the HVAC."""
-        _LOGGER.debug("Will hvac status")
+        _LOGGER.debug("Will get hvac status")
         return await self._manager.get_hvac_status()
+
+    async def get_emf_reports(self):
+        """Get emf reports."""
+        _LOGGER.debug("Will get emf reports")
+        return await self._manager.get_emf_devices()
 
     async def request_hvac_update(self):
         """Request is not on the classic update since it won't fetch data.
