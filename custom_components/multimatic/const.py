@@ -58,6 +58,7 @@ HOLIDAY_MODE = "holiday_mode"
 HVAC_STATUS = "hvac_status"
 FACILITY_DETAIL = "facility_detail"
 GATEWAY = "gateway"
+EMF_REPORTS = "emf_reports"
 COORDINATORS = "coordinators"
 COORDINATOR_LIST: dict[str, timedelta | None] = {
     ZONES: None,
@@ -71,4 +72,5 @@ COORDINATOR_LIST: dict[str, timedelta | None] = {
     HVAC_STATUS: None,
     FACILITY_DETAIL: timedelta(days=1),
     GATEWAY: timedelta(days=1),
+    EMF_REPORTS: timedelta(hours=4),
 }
