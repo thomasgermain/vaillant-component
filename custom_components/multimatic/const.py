@@ -72,5 +72,5 @@ COORDINATOR_LIST: dict[str, timedelta | None] = {
     HVAC_STATUS: None,
     FACILITY_DETAIL: timedelta(days=1),
     GATEWAY: timedelta(days=1),
-    EMF_REPORTS: timedelta(hours=4),
+    EMF_REPORTS: timedelta(minutes=30),
 }
