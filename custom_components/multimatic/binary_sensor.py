@@ -64,12 +64,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 sensors.append(RoomDeviceBattery(rooms_coo, device))
                 sensors.append(RoomDeviceConnectivity(rooms_coo, device))
 
-        sensors.extend(
-            [
-                HolidayModeSensor(get_coordinator(hass, HOLIDAY_MODE, entry.unique_id)),
-                QuickModeSensor(get_coordinator(hass, QUICK_MODE, entry.unique_id)),
-            ]
-        )
+    sensors.extend(
+        [
+            HolidayModeSensor(get_coordinator(hass, HOLIDAY_MODE, entry.unique_id)),
+            QuickModeSensor(get_coordinator(hass, QUICK_MODE, entry.unique_id)),
+        ]
+    )
 
     _LOGGER.info("Adding %s binary sensor entities", len(sensors))
 
@@ -445,18 +445,18 @@ class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
         """Return the state attributes."""
         state_attributes = {}
         if self.coordinator.data.errors:
+            errors = []
             for error in self.coordinator.data.errors:
-                state_attributes.update(
+                errors.append(
                     {
-                        error.status_code: {
-                            "status_code": error.status_code,
-                            "title": error.title,
-                            "timestamp": error.timestamp,
-                            "description": error.description,
-                            "device_name": error.device_name,
-                        }
+                        "status_code": error.status_code,
+                        "title": error.title,
+                        "timestamp": error.timestamp,
+                        "description": error.description,
+                        "device_name": error.device_name,
                     }
                 )
+            state_attributes["errors"] = errors
         return state_attributes
 
     @property
