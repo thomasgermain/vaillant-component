@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
     DEVICE_CLASS_PRESSURE,
     DEVICE_CLASS_TEMPERATURE,
     DOMAIN,
-    STATE_CLASS_MEASUREMENT,
+    STATE_CLASS_TOTAL_INCREASING,
     SensorEntity,
 )
 from homeassistant.const import ENERGY_WATT_HOUR, TEMP_CELSIUS
@@ -215,4 +215,4 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
     @property
     def state_class(self) -> str:
         """Return the state class of this entity."""
-        return STATE_CLASS_MEASUREMENT
+        return STATE_CLASS_TOTAL_INCREASING
