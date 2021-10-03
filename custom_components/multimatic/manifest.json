@@ -14,7 +14,7 @@
   "codeowners": [
     "@thomasgermain"
   ],
-  "version": "1.9.0",
+  "version": "1.10.0",
   "homeassistant": "2021.9.1",
   "iot_class": "cloud_polling"
 }
