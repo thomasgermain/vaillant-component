@@ -12,10 +12,12 @@ from homeassistant.components.sensor import (
     DEVICE_CLASS_PRESSURE,
     DEVICE_CLASS_TEMPERATURE,
     DOMAIN,
+    STATE_CLASS_MEASUREMENT,
     STATE_CLASS_TOTAL_INCREASING,
     SensorEntity,
 )
 from homeassistant.const import ENERGY_WATT_HOUR, TEMP_CELSIUS
+from homeassistant.helpers.typing import StateType
 from homeassistant.util.dt import utc_from_timestamp
 
 from .const import EMF_REPORTS, OUTDOOR_TEMP, REPORTS
@@ -56,7 +58,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     return True
 
 
-class OutdoorTemperatureSensor(MultimaticEntity):
+class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
     """Outdoor temperature sensor."""
 
     def __init__(self, coordinator: MultimaticCoordinator) -> None:
@@ -64,7 +66,7 @@ class OutdoorTemperatureSensor(MultimaticEntity):
         super().__init__(coordinator, DOMAIN, "outdoor_temperature")
 
     @property
-    def state(self):
+    def native_value(self) -> StateType:
         """Return the state of the entity."""
         return self.coordinator.data
 
@@ -74,7 +76,7 @@ class OutdoorTemperatureSensor(MultimaticEntity):
         return super().available and self.coordinator.data is not None
 
     @property
-    def unit_of_measurement(self):
+    def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
         return TEMP_CELSIUS
 
@@ -88,8 +90,13 @@ class OutdoorTemperatureSensor(MultimaticEntity):
         """Return the class of this device, from component DEVICE_CLASSES."""
         return DEVICE_CLASS_TEMPERATURE
 
+    @property
+    def state_class(self) -> str | None:
+        """Return the state class of this entity."""
+        return STATE_CLASS_MEASUREMENT
 
-class ReportSensor(MultimaticEntity):
+
+class ReportSensor(MultimaticEntity, SensorEntity):
     """Report sensor."""
 
     def __init__(self, coordinator: MultimaticCoordinator, report: Report) -> None:
@@ -115,7 +122,7 @@ class ReportSensor(MultimaticEntity):
         )
 
     @property
-    def state(self):
+    def native_value(self) -> StateType:
         """Return the state of the entity."""
         return self.report.value
 
@@ -125,7 +132,7 @@ class ReportSensor(MultimaticEntity):
         return super().available and self.report is not None
 
     @property
-    def unit_of_measurement(self) -> str | None:
+    def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
         return self._unit
 
@@ -138,6 +145,11 @@ class ReportSensor(MultimaticEntity):
             "manufacturer": "Vaillant",
             "model": self.report.device_id,
         }
+
+    @property
+    def state_class(self) -> str | None:
+        """Return the state class of this entity, from STATE_CLASSES, if any."""
+        return STATE_CLASS_MEASUREMENT
 
     @property
     def device_class(self) -> str | None:
@@ -173,7 +185,7 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
         )
 
     @property
-    def state(self):
+    def native_value(self):
         """Return the state of the entity."""
         return self.report.value
 
@@ -183,7 +195,7 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
         return super().available and self.report is not None
 
     @property
-    def unit_of_measurement(self) -> str | None:
+    def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
         return ENERGY_WATT_HOUR
 
