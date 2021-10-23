@@ -80,7 +80,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
                 climates.append(ZoneClimate(zones_coo, zone, ventilation_coo.data))
 
     if rooms_coo.data:
-        rbr_zone = [zone for zone in zones_coo.data if zone.rbr][0]
+        rbr_zone = next((zone for zone in zones_coo.data if zone.rbr), None)
         for room in rooms_coo.data:
             climates.append(RoomClimate(rooms_coo, zones_coo, room, rbr_zone))
 
@@ -240,7 +240,7 @@ class RoomClimate(MultimaticClimate):
     ) -> None:
         """Initialize entity."""
         super().__init__(coordinator, room.name)
-        self._zone_id = zone.id
+        self._zone_id = zone.id if zone else None
         self._room_id = room.id
         self._supported_hvac = list(RoomClimate._HA_MODE_TO_MULTIMATIC.keys())
         self._supported_presets = list(RoomClimate._HA_PRESET_TO_MULTIMATIC.keys())
@@ -287,7 +287,7 @@ class RoomClimate(MultimaticClimate):
     @property
     def zone(self):
         """Return the zone the current room belongs."""
-        if self._zone_coo.data:
+        if self._zone_coo.data and self._zone_id:
             return next(
                 (zone for zone in self._zone_coo.data if zone.id == self._zone_id), None
             )
