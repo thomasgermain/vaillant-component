@@ -16,7 +16,11 @@ from homeassistant.components.sensor import (
     STATE_CLASS_TOTAL_INCREASING,
     SensorEntity,
 )
-from homeassistant.const import ENERGY_WATT_HOUR, TEMP_CELSIUS
+from homeassistant.const import (
+    ENERGY_WATT_HOUR,
+    ENTITY_CATEGORY_DIAGNOSTIC,
+    TEMP_CELSIUS,
+)
 from homeassistant.helpers.typing import StateType
 from homeassistant.util.dt import utc_from_timestamp
 
@@ -95,6 +99,11 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
         """Return the state class of this entity."""
         return STATE_CLASS_MEASUREMENT
 
+    @property
+    def entity_category(self) -> str | None:
+        """Return the category of the entity, if any."""
+        return ENTITY_CATEGORY_DIAGNOSTIC
+
 
 class ReportSensor(MultimaticEntity, SensorEntity):
     """Report sensor."""
@@ -160,6 +169,11 @@ class ReportSensor(MultimaticEntity, SensorEntity):
     def name(self) -> str | None:
         """Return the name of the entity."""
         return self._name
+
+    @property
+    def entity_category(self) -> str | None:
+        """Return the category of the entity, if any."""
+        return ENTITY_CATEGORY_DIAGNOSTIC
 
 
 class EmfReportSensor(MultimaticEntity, SensorEntity):
@@ -228,3 +242,8 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
     def state_class(self) -> str:
         """Return the state class of this entity."""
         return STATE_CLASS_TOTAL_INCREASING
+
+    @property
+    def entity_category(self) -> str | None:
+        """Return the category of the entity, if any."""
+        return ENTITY_CATEGORY_DIAGNOSTIC

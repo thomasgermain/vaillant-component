@@ -8,10 +8,16 @@ from typing import Any
 from pymultimatic.model import OperatingModes, QuickModes
 
 from homeassistant.components.fan import DOMAIN, SUPPORT_PRESET_MODE, FanEntity
+from homeassistant.helpers import entity_platform
 
 from .const import VENTILATION
 from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
+from .service import (
+    SERVICE_SET_VENTILATION_DAY_LEVEL,
+    SERVICE_SET_VENTILATION_NIGHT_LEVEL,
+    SERVICES,
+)
 from .utils import get_coordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,6 +31,19 @@ async def async_setup_entry(hass, entry, async_add_entities):
     if coordinator.data:
         _LOGGER.debug("Adding fan entity")
         async_add_entities([MultimaticFan(coordinator)])
+
+        _LOGGER.debug("Adding fan services")
+        platform = entity_platform.current_platform.get()
+        platform.async_register_entity_service(
+            SERVICE_SET_VENTILATION_DAY_LEVEL,
+            SERVICES[SERVICE_SET_VENTILATION_DAY_LEVEL]["schema"],
+            SERVICE_SET_VENTILATION_DAY_LEVEL,
+        )
+        platform.async_register_entity_service(
+            SERVICE_SET_VENTILATION_NIGHT_LEVEL,
+            SERVICES[SERVICE_SET_VENTILATION_NIGHT_LEVEL]["schema"],
+            SERVICE_SET_VENTILATION_NIGHT_LEVEL,
+        )
 
 
 class MultimaticFan(MultimaticEntity, FanEntity):

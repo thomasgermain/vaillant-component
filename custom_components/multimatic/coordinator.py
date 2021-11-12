@@ -390,6 +390,14 @@ class MultimaticApi:
             entity.component.operating_mode = mode
         await self._refresh(touch_system, entity)
 
+    async def set_fan_day_level(self, level):
+        """Set fan day level."""
+        await self._manager.set_ventilation_day_level(level)
+
+    async def set_fan_night_level(self, level):
+        """Set fan night level."""
+        await self._manager.set_ventilation_night_level(level)
+
     async def _remove_quick_mode_no_refresh(self, entity=None):
         removed = False
 
