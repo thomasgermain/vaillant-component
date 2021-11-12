@@ -36,7 +36,6 @@ from .const import (
     QUICK_MODE,
     REFRESH_EVENT,
 )
-from .exceptions import MultimaticError
 from .utils import (
     holiday_mode_from_json,
     holiday_mode_to_json,
@@ -163,7 +162,7 @@ class MultimaticApi:
             await self._manager.request_hvac_update()
         except ApiError as err:
             if err.status >= 500:
-                _raise_detailed_error(err)
+                raise
             _LOGGER.warning("Request_hvac_update is done too often", exc_info=True)
 
     def get_active_mode(self, comp: Component):
@@ -508,9 +507,9 @@ class MultimaticCoordinator(DataUpdateCoordinator):
         try:
             self.logger.debug("calling %s", self._method)
             return await getattr(self.api, self._method)()
-        except ApiError as err:
+        except ApiError:
             await self._safe_logout()
-            _raise_detailed_error(err)
+            raise
 
     async def _fetch_data_if_needed(self):
         if self._api_listeners and len(self._api_listeners) > 0:
@@ -532,18 +531,10 @@ class MultimaticCoordinator(DataUpdateCoordinator):
                     exc_info=True,
                 )
             else:
-                _raise_detailed_error(err)
+                raise
 
     async def _safe_logout(self):
         try:
             await self.api.logout()
         except ApiError:
             self.logger.debug("Error during logout", exc_info=True)
-
-
-def _raise_detailed_error(err: ApiError):
-    raise MultimaticError(
-        message=err.message + f" status: {err.status} and response: {err.response}",
-        status=err.status,
-        response=err.response,
-    ) from err
