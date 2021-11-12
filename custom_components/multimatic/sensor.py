@@ -99,6 +99,11 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
         """Return the state class of this entity."""
         return STATE_CLASS_MEASUREMENT
 
+    @property
+    def entity_category(self) -> str | None:
+        """Return the category of the entity, if any."""
+        return ENTITY_CATEGORY_DIAGNOSTIC
+
 
 class ReportSensor(MultimaticEntity, SensorEntity):
     """Report sensor."""

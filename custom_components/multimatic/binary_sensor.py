@@ -113,6 +113,11 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
         """Return the name of the entity."""
         return self.coordinator.data.circulation.name
 
+    @property
+    def entity_category(self) -> str | None:
+        """Return the category of the entity, if any."""
+        return ENTITY_CATEGORY_DIAGNOSTIC
+
 
 class RoomWindow(MultimaticEntity, BinarySensorEntity):
     """multimatic window binary sensor."""
