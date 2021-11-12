@@ -41,6 +41,7 @@ from homeassistant.helpers import entity_platform
 from . import SERVICES
 from .const import (
     DEFAULT_QUICK_VETO_DURATION,
+    DOMAIN as MULTIMATIC,
     PRESET_COOLING_FOR_X_DAYS,
     PRESET_COOLING_ON,
     PRESET_DAY,
@@ -247,7 +248,20 @@ class RoomClimate(MultimaticClimate):
         self._zone_coo = zone_coo
 
     @property
-    def component(self) -> Component:
+    def device_info(self):
+        """Return device specific attributes."""
+        devices = self.component.devices
+        if len(devices) == 1:  # Can't link an entity to multiple devices
+            return {
+                "identifiers": {(MULTIMATIC, devices[0].sgtin)},
+                "name": devices[0].name,
+                "manufacturer": "Vaillant",
+                "model": devices[0].device_type,
+            }
+        return {}
+
+    @property
+    def component(self) -> Room:
         """Get the component."""
         return self.coordinator.find_component(self._room_id)
 
@@ -344,7 +358,8 @@ class RoomClimate(MultimaticClimate):
     @property
     def current_humidity(self) -> int | None:
         """Return the current humidity."""
-        return self.component.humidity
+        humidity = self.component.humidity
+        return int(humidity) if humidity is not None else None
 
 
 class ZoneClimate(MultimaticClimate):
@@ -415,8 +430,8 @@ class ZoneClimate(MultimaticClimate):
         return attr
 
     @property
-    def component(self) -> Component:
-        """Return the room."""
+    def component(self) -> Zone:
+        """Return the zone."""
         return self.coordinator.find_component(self._zone_id)
 
     @property

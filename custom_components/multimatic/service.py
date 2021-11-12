@@ -10,6 +10,7 @@ from homeassistant.util.dt import parse_date
 from .const import (
     ATTR_DURATION,
     ATTR_END_DATE,
+    ATTR_LEVEL,
     ATTR_QUICK_MODE,
     ATTR_START_DATE,
     ATTR_TEMPERATURE,
@@ -29,6 +30,8 @@ SERVICE_SET_HOLIDAY_MODE = "set_holiday_mode"
 SERVICE_SET_QUICK_VETO = "set_quick_veto"
 SERVICE_REMOVE_QUICK_VETO = "remove_quick_veto"
 SERVICE_REQUEST_HVAC_UPDATE = "request_hvac_update"
+SERVICE_SET_VENTILATION_DAY_LEVEL = "set_ventilation_day_level"
+SERVICE_SET_VENTILATION_NIGHT_LEVEL = "set_ventilation_night_level"
 
 SERVICE_REMOVE_QUICK_MODE_SCHEMA = vol.Schema({})
 SERVICE_REMOVE_HOLIDAY_MODE_SCHEMA = vol.Schema({})
@@ -65,6 +68,14 @@ SERVICE_SET_QUICK_VETO_SCHEMA = vol.Schema(
 )
 SERVICE_REQUEST_HVAC_UPDATE_SCHEMA = vol.Schema({})
 
+SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_LEVEL): vol.All(vol.Coerce(int), vol.Clamp(min=1, max=6)),
+    }
+)
+
+SERVICE_SET_VENTILATION_NIGHT_LEVEL_SCHEMA = SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA
+
 SERVICES = {
     SERVICE_REMOVE_QUICK_MODE: {
         "schema": SERVICE_REMOVE_QUICK_MODE_SCHEMA,
@@ -85,6 +96,12 @@ SERVICES = {
     SERVICE_SET_QUICK_VETO: {"schema": SERVICE_SET_QUICK_VETO_SCHEMA, "entity": True},
     SERVICE_REQUEST_HVAC_UPDATE: {
         "schema": SERVICE_REQUEST_HVAC_UPDATE_SCHEMA,
+    },
+    SERVICE_SET_VENTILATION_NIGHT_LEVEL: {
+        "schema": SERVICE_SET_VENTILATION_NIGHT_LEVEL_SCHEMA
+    },
+    SERVICE_SET_VENTILATION_DAY_LEVEL: {
+        "schema": SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA
     },
 }
 
@@ -131,3 +148,11 @@ class MultimaticServiceHandler:
     async def request_hvac_update(self, data):
         """Ask multimatic API to get data from the installation."""
         await self.api.request_hvac_update()
+
+    async def set_ventilation_day_level(self, data):
+        """Set ventilation day level."""
+        await self.api.set_fan_day_level(data.get(ATTR_LEVEL))
+
+    async def set_ventilation_night_level(self, data):
+        """Set ventilation day level."""
+        await self.api.set_fan_night_level(data.get(ATTR_LEVEL))

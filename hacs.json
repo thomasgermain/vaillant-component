@@ -2,5 +2,5 @@
   "name": "multimatic",
   "domains": ["binary_sensor", "climate", "fan", "sensor", "water_heater"],
   "render_readme": true,
-  "homeassistant": "2021.9.1"
+  "homeassistant": "2021.11.0"
 }

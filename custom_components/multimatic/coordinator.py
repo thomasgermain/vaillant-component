@@ -390,6 +390,14 @@ class MultimaticApi:
             entity.component.operating_mode = mode
         await self._refresh(touch_system, entity)
 
+    async def set_fan_day_level(self, level):
+        """Set fan day level."""
+        await self._manager.set_ventilation_day_level(level)
+
+    async def set_fan_night_level(self, level):
+        """Set fan night level."""
+        await self._manager.set_ventilation_night_level(level)
+
     async def _remove_quick_mode_no_refresh(self, entity=None):
         removed = False
 
@@ -499,8 +507,11 @@ class MultimaticCoordinator(DataUpdateCoordinator):
         try:
             self.logger.debug("calling %s", self._method)
             return await getattr(self.api, self._method)()
-        except ApiError:
+        except ApiError as err:
             await self._safe_logout()
+            err.message = (
+                err.message + f" status: {err.status} and response: {err.response}"
+            )
             raise
 
     async def _fetch_data_if_needed(self):
