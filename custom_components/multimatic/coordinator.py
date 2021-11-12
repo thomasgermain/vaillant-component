@@ -507,8 +507,11 @@ class MultimaticCoordinator(DataUpdateCoordinator):
         try:
             self.logger.debug("calling %s", self._method)
             return await getattr(self.api, self._method)()
-        except ApiError:
+        except ApiError as err:
             await self._safe_logout()
+            err.message = (
+                err.message + f" status: {err.status} and response: {err.response}"
+            )
             raise
 
     async def _fetch_data_if_needed(self):
