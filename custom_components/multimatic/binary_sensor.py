@@ -6,12 +6,8 @@ import logging
 from pymultimatic.model import Device, OperatingModes, QuickModes, Room, SettingModes
 
 from homeassistant.components.binary_sensor import (
-    DEVICE_CLASS_BATTERY,
-    DEVICE_CLASS_CONNECTIVITY,
-    DEVICE_CLASS_LOCK,
-    DEVICE_CLASS_PROBLEM,
-    DEVICE_CLASS_WINDOW,
     DOMAIN,
+    BinarySensorDeviceClass,
     BinarySensorEntity,
 )
 from homeassistant.const import ENTITY_CATEGORY_DIAGNOSTIC
@@ -124,7 +120,9 @@ class RoomWindow(MultimaticEntity, BinarySensorEntity):
 
     def __init__(self, coordinator: MultimaticCoordinator, room: Room) -> None:
         """Initialize entity."""
-        super().__init__(coordinator, DOMAIN, f"{room.name}_{DEVICE_CLASS_WINDOW}")
+        super().__init__(
+            coordinator, DOMAIN, f"{room.name}_{BinarySensorDeviceClass.WINDOW}"
+        )
         self._room_id = room.id
 
     @property
@@ -140,7 +138,7 @@ class RoomWindow(MultimaticEntity, BinarySensorEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_WINDOW
+        return BinarySensorDeviceClass.WINDOW
 
     @property
     def name(self) -> str:
@@ -182,7 +180,7 @@ class RoomDeviceEntity(MultimaticEntity, BinarySensorEntity):
         }
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return the state attributes."""
         device = self.device
         return {
@@ -222,7 +220,7 @@ class RoomDeviceChildLock(RoomDeviceEntity):
         self, coordinator: MultimaticCoordinator, device: Device, room: Room
     ) -> None:
         """Initialize entity."""
-        super().__init__(coordinator, device, DEVICE_CLASS_LOCK)
+        super().__init__(coordinator, device, BinarySensorDeviceClass.LOCK)
         self._room_id = room.id
 
     @property
@@ -243,7 +241,7 @@ class RoomDeviceChildLock(RoomDeviceEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_LOCK
+        return BinarySensorDeviceClass.LOCK
 
     @property
     def entity_category(self) -> str | None:
@@ -256,7 +254,7 @@ class RoomDeviceBattery(RoomDeviceEntity):
 
     def __init__(self, coordinator: MultimaticCoordinator, device: Device) -> None:
         """Initialize entity."""
-        super().__init__(coordinator, device, DEVICE_CLASS_BATTERY)
+        super().__init__(coordinator, device, BinarySensorDeviceClass.BATTERY)
 
     @property
     def is_on(self):
@@ -266,7 +264,7 @@ class RoomDeviceBattery(RoomDeviceEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_BATTERY
+        return BinarySensorDeviceClass.BATTERY
 
     @property
     def entity_category(self) -> str | None:
@@ -279,7 +277,7 @@ class RoomDeviceConnectivity(RoomDeviceEntity):
 
     def __init__(self, coordinator: MultimaticCoordinator, device: Device) -> None:
         """Initialize entity."""
-        super().__init__(coordinator, device, DEVICE_CLASS_CONNECTIVITY)
+        super().__init__(coordinator, device, BinarySensorDeviceClass.CONNECTIVITY)
 
     @property
     def is_on(self):
@@ -289,7 +287,7 @@ class RoomDeviceConnectivity(RoomDeviceEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_CONNECTIVITY
+        return BinarySensorDeviceClass.CONNECTIVITY
 
     @property
     def entity_category(self) -> str | None:
@@ -385,7 +383,7 @@ class BoxOnline(VRBoxEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_CONNECTIVITY
+        return BinarySensorDeviceClass.CONNECTIVITY
 
     @property
     def entity_category(self) -> str | None:
@@ -433,7 +431,7 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
         }
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return the state attributes."""
         if self.available:
             return {"device_id": self._boiler_id, "error": self.boiler_status.is_error}
@@ -457,7 +455,7 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_PROBLEM
+        return BinarySensorDeviceClass.PROBLEM
 
     @property
     def entity_category(self) -> str | None:
@@ -479,7 +477,10 @@ class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-        return self.coordinator.data.errors and len(self.coordinator.data.errors) > 0
+        if self.coordinator.data.errors:
+            return len(self.coordinator.data.errors) > 0
+        else:
+            return False
 
     @property
     def state_attributes(self):
@@ -503,7 +504,7 @@ class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_PROBLEM
+        return BinarySensorDeviceClass.PROBLEM
 
     @property
     def name(self):
@@ -564,7 +565,7 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-        return self.coordinator.data
+        return False if self.coordinator.data is None else True
 
     @property
     def state_attributes(self):

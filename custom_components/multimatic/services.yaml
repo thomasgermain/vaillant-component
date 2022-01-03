@@ -49,3 +49,23 @@ remove_quick_veto:
 
 request_hvac_update:
   description: Ask multimatic API to get data from your installation.
+
+set_ventilation_day_level:
+  description: Set day level ventilation
+  fields:
+    entity_id:
+      description: Entity id of the fan
+      example: fan.bathroom
+    level:
+      description: Level to set (required)
+      example: 1
+
+set_ventilation_night_level:
+  description: Set night level ventilation
+  fields:
+    entity_id:
+      description: Entity id of the fan
+      example: fan.bathroom
+    level:
+      description: Level to set (required)
+      example: 2
