@@ -10,7 +10,7 @@ from pymultimatic.model import OperatingModes, QuickModes
 from homeassistant.components.fan import DOMAIN, SUPPORT_PRESET_MODE, FanEntity
 from homeassistant.helpers import entity_platform
 
-from .const import VENTILATION
+from .const import ATTR_LEVEL, VENTILATION
 from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
 from .service import (
@@ -136,3 +136,11 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     def active_mode(self):
         """Return the active mode."""
         return self.coordinator.api.get_active_mode(self.component)
+
+    async def set_ventilation_day_level(self, **kwargs):
+        """Service method to set day level."""
+        await self.coordinator.api.set_fan_day_level(self, kwargs.get(ATTR_LEVEL))
+
+    async def set_ventilation_night_level(self, **kwargs):
+        """Service method to set night level."""
+        await self.coordinator.api.set_fan_night_level(self, kwargs.get(ATTR_LEVEL))

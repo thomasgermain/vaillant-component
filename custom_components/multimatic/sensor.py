@@ -8,12 +8,10 @@ import logging
 from pymultimatic.model import EmfReport, Report
 
 from homeassistant.components.sensor import (
-    DEVICE_CLASS_ENERGY,
-    DEVICE_CLASS_PRESSURE,
-    DEVICE_CLASS_TEMPERATURE,
     DOMAIN,
     STATE_CLASS_MEASUREMENT,
     STATE_CLASS_TOTAL_INCREASING,
+    SensorDeviceClass,
     SensorEntity,
 )
 from homeassistant.const import (
@@ -32,9 +30,9 @@ from .utils import get_coordinator
 _LOGGER = logging.getLogger(__name__)
 
 UNIT_TO_DEVICE_CLASS = {
-    "bar": DEVICE_CLASS_PRESSURE,
+    "bar": SensorDeviceClass.PRESSURE,
     "ppm": "",
-    "°C": DEVICE_CLASS_TEMPERATURE,
+    "°C": SensorDeviceClass.TEMPERATURE,
 }
 
 
@@ -92,7 +90,7 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
     @property
     def device_class(self) -> str:
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_TEMPERATURE
+        return SensorDeviceClass.TEMPERATURE
 
     @property
     def state_class(self) -> str | None:
@@ -226,7 +224,7 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
     @property
     def device_class(self) -> str | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return DEVICE_CLASS_ENERGY
+        return SensorDeviceClass.ENERGY
 
     @property
     def name(self) -> str | None:

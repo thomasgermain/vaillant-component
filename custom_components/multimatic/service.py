@@ -70,6 +70,7 @@ SERVICE_REQUEST_HVAC_UPDATE_SCHEMA = vol.Schema({})
 
 SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA = vol.Schema(
     {
+        vol.Required(ATTR_ENTITY_ID): vol.All(vol.Coerce(str)),
         vol.Required(ATTR_LEVEL): vol.All(vol.Coerce(int), vol.Clamp(min=1, max=6)),
     }
 )
@@ -98,10 +99,12 @@ SERVICES = {
         "schema": SERVICE_REQUEST_HVAC_UPDATE_SCHEMA,
     },
     SERVICE_SET_VENTILATION_NIGHT_LEVEL: {
-        "schema": SERVICE_SET_VENTILATION_NIGHT_LEVEL_SCHEMA
+        "schema": SERVICE_SET_VENTILATION_NIGHT_LEVEL_SCHEMA,
+        "entity": True,
     },
     SERVICE_SET_VENTILATION_DAY_LEVEL: {
-        "schema": SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA
+        "schema": SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA,
+        "entity": True,
     },
 }
 
@@ -148,11 +151,3 @@ class MultimaticServiceHandler:
     async def request_hvac_update(self, data):
         """Ask multimatic API to get data from the installation."""
         await self.api.request_hvac_update()
-
-    async def set_ventilation_day_level(self, data):
-        """Set ventilation day level."""
-        await self.api.set_fan_day_level(data.get(ATTR_LEVEL))
-
-    async def set_ventilation_night_level(self, data):
-        """Set ventilation day level."""
-        await self.api.set_fan_night_level(data.get(ATTR_LEVEL))
