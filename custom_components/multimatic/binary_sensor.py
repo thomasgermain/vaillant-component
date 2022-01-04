@@ -118,6 +118,11 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
         """Return the category of the entity, if any."""
         return ENTITY_CATEGORY_DIAGNOSTIC
 
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return BinarySensorDeviceClass.RUNNING
+
 
 class RoomWindow(MultimaticEntity, BinarySensorEntity):
     """multimatic window binary sensor."""
@@ -359,6 +364,11 @@ class BoxUpdate(VRBoxEntity):
         """Return the category of the entity, if any."""
         return ENTITY_CATEGORY_DIAGNOSTIC
 
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return BinarySensorDeviceClass.UPDATE
+
 
 class BoxOnline(VRBoxEntity):
     """Check if box is online."""
@@ -526,7 +536,7 @@ class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-        return self.coordinator.data and self.coordinator.data.is_applied
+        return self.coordinator.data is not None and self.coordinator.data.is_applied
 
     @property
     def state_attributes(self):
@@ -552,6 +562,11 @@ class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
     def entity_category(self) -> str | None:
         """Return the category of the entity, if any."""
         return ENTITY_CATEGORY_DIAGNOSTIC
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return BinarySensorDeviceClass.OCCUPANCY
 
 
 class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
@@ -590,3 +605,8 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
     def entity_category(self) -> str | None:
         """Return the category of the entity, if any."""
         return ENTITY_CATEGORY_DIAGNOSTIC
+
+    @property
+    def device_class(self):
+        """Return the class of this device, from component DEVICE_CLASSES."""
+        return BinarySensorDeviceClass.RUNNING
