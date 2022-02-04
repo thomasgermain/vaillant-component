@@ -31,7 +31,8 @@ _LOGGER = logging.getLogger(__name__)
 
 UNIT_TO_DEVICE_CLASS = {
     "bar": SensorDeviceClass.PRESSURE,
-    "ppm": "",
+    "ppm": SensorDeviceClass.CARBON_DIOXIDE, 
+    "Wh" : SensorDeviceClass.ENERGY,
     "°C": SensorDeviceClass.TEMPERATURE,
 }
 
