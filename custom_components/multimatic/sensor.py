@@ -232,11 +232,6 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
         return self._name
 
     @property
-    def last_reset(self) -> datetime.datetime:
-        """Return the time when the sensor was last reset, if any."""
-        return utc_from_timestamp(0)
-
-    @property
     def state_class(self) -> str:
         """Return the state class of this entity."""
         return STATE_CLASS_TOTAL_INCREASING
