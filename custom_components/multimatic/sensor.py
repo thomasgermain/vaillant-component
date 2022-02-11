@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
 
 from pymultimatic.model import EmfReport, Report
@@ -20,7 +19,6 @@ from homeassistant.const import (
     TEMP_CELSIUS,
 )
 from homeassistant.helpers.typing import StateType
-from homeassistant.util.dt import utc_from_timestamp
 
 from .const import EMF_REPORTS, OUTDOOR_TEMP, REPORTS
 from .coordinator import MultimaticCoordinator
@@ -31,7 +29,8 @@ _LOGGER = logging.getLogger(__name__)
 
 UNIT_TO_DEVICE_CLASS = {
     "bar": SensorDeviceClass.PRESSURE,
-    "ppm": "",
+    "ppm": SensorDeviceClass.CO2,
+    "Wh": SensorDeviceClass.ENERGY,
     "°C": SensorDeviceClass.TEMPERATURE,
 }
 
