@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Mapping
 
 from pymultimatic.model import OperatingModes, QuickModes
 
-from homeassistant.components.fan import DOMAIN, SUPPORT_PRESET_MODE, FanEntity
+from homeassistant.components.fan import (
+    DOMAIN,
+    SUPPORT_PRESET_MODE,
+    FanEntity,
+    ATTR_SPEED,
+)
 from homeassistant.helpers import entity_platform
 
 from .const import ATTR_LEVEL, VENTILATION
@@ -144,3 +149,8 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     async def set_ventilation_night_level(self, **kwargs):
         """Service method to set night level."""
         await self.coordinator.api.set_fan_night_level(self, kwargs.get(ATTR_LEVEL))
+
+    @property
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        """Return entity specific state attributes."""
+        return {ATTR_SPEED: self.active_mode.target}
