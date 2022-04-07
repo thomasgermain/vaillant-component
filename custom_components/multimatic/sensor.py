@@ -8,14 +8,12 @@ from pymultimatic.model import EmfReport, Report
 
 from homeassistant.components.sensor import (
     DOMAIN,
-    STATE_CLASS_MEASUREMENT,
-    STATE_CLASS_TOTAL_INCREASING,
+    SensorStateClass,
     SensorDeviceClass,
     SensorEntity,
 )
 from homeassistant.const import (
     ENERGY_WATT_HOUR,
-    ENTITY_CATEGORY_DIAGNOSTIC,
     TEMP_CELSIUS,
 )
 from homeassistant.helpers.typing import StateType
@@ -24,6 +22,7 @@ from .const import EMF_REPORTS, OUTDOOR_TEMP, REPORTS
 from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
 from .utils import get_coordinator
+from homeassistant.helpers.entity import EntityCategory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -94,12 +93,12 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
     @property
     def state_class(self) -> str | None:
         """Return the state class of this entity."""
-        return STATE_CLASS_MEASUREMENT
+        return SensorStateClass.MEASUREMENT
 
     @property
-    def entity_category(self) -> str | None:
+    def entity_category(self) -> EntityCategory | None:
         """Return the category of the entity, if any."""
-        return ENTITY_CATEGORY_DIAGNOSTIC
+        return EntityCategory.DIAGNOSTIC
 
 
 class ReportSensor(MultimaticEntity, SensorEntity):
@@ -155,7 +154,7 @@ class ReportSensor(MultimaticEntity, SensorEntity):
     @property
     def state_class(self) -> str | None:
         """Return the state class of this entity, from STATE_CLASSES, if any."""
-        return STATE_CLASS_MEASUREMENT
+        return SensorStateClass.MEASUREMENT
 
     @property
     def device_class(self) -> str | None:
@@ -168,9 +167,9 @@ class ReportSensor(MultimaticEntity, SensorEntity):
         return self._name
 
     @property
-    def entity_category(self) -> str | None:
+    def entity_category(self) -> EntityCategory | None:
         """Return the category of the entity, if any."""
-        return ENTITY_CATEGORY_DIAGNOSTIC
+        return EntityCategory.DIAGNOSTIC
 
 
 class EmfReportSensor(MultimaticEntity, SensorEntity):
@@ -233,9 +232,9 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
     @property
     def state_class(self) -> str:
         """Return the state class of this entity."""
-        return STATE_CLASS_TOTAL_INCREASING
+        return SensorStateClass.TOTAL_INCREASING
 
     @property
-    def entity_category(self) -> str | None:
+    def entity_category(self) -> EntityCategory | None:
         """Return the category of the entity, if any."""
-        return ENTITY_CATEGORY_DIAGNOSTIC
+        return EntityCategory.DIAGNOSTIC

@@ -7,12 +7,7 @@ from typing import Any, Mapping
 
 from pymultimatic.model import OperatingModes, QuickModes
 
-from homeassistant.components.fan import (
-    DOMAIN,
-    SUPPORT_PRESET_MODE,
-    FanEntity,
-    ATTR_SPEED,
-)
+from homeassistant.components.fan import DOMAIN, FanEntity, FanEntityFeature
 from homeassistant.helpers import entity_platform
 
 from .const import ATTR_LEVEL, VENTILATION
@@ -87,7 +82,6 @@ class MultimaticFan(MultimaticEntity, FanEntity):
 
     async def async_turn_on(
         self,
-        speed: str | None = None,
         percentage: int | None = None,
         preset_mode: str | None = None,
         **kwargs,
@@ -95,8 +89,6 @@ class MultimaticFan(MultimaticEntity, FanEntity):
         """Turn on the fan."""
         if preset_mode:
             mode = OperatingModes.get(preset_mode.upper())
-        elif speed:
-            mode = OperatingModes.get(speed.upper())
         else:
             mode = OperatingModes.AUTO
         return await self.coordinator.api.set_fan_operating_mode(self, mode)
@@ -115,7 +107,7 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     @property
     def supported_features(self) -> int:
         """Flag supported features."""
-        return SUPPORT_PRESET_MODE
+        return FanEntityFeature.PRESET_MODE
 
     @property
     def preset_mode(self) -> str | None:
@@ -153,4 +145,4 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return entity specific state attributes."""
-        return {ATTR_SPEED: self.active_mode.target}
+        return {"speed": self.active_mode.target}
