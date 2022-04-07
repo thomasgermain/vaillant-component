@@ -531,8 +531,7 @@ class MultimaticCoordinator(DataUpdateCoordinator):
                     exc_info=True,
                 )
                 return None
-            else:
-                raise
+            raise
 
     async def _safe_logout(self):
         try:
