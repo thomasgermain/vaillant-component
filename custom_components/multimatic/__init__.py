@@ -6,6 +6,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     COORDINATOR_LIST,
@@ -17,7 +18,6 @@ from .const import (
 )
 from .coordinator import MultimaticApi, MultimaticCoordinator
 from .service import SERVICES, MultimaticServiceHandler
-from homeassistant.helpers.typing import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -11,6 +11,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.util import slugify
 
 from .const import (
@@ -27,7 +28,6 @@ from .const import (
 from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
 from .utils import get_coordinator
-from homeassistant.helpers.entity import EntityCategory
 
 _LOGGER = logging.getLogger(__name__)
 

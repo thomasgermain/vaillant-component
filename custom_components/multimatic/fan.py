@@ -7,7 +7,7 @@ from typing import Any, Mapping
 
 from pymultimatic.model import OperatingModes, QuickModes
 
-from homeassistant.components.fan import DOMAIN, FanEntity, SUPPORT_PRESET_MODE
+from homeassistant.components.fan import DOMAIN, SUPPORT_PRESET_MODE, FanEntity
 from homeassistant.helpers import entity_platform
 
 from .const import ATTR_LEVEL, VENTILATION

@@ -8,21 +8,18 @@ from pymultimatic.model import EmfReport, Report
 
 from homeassistant.components.sensor import (
     DOMAIN,
-    SensorStateClass,
     SensorDeviceClass,
     SensorEntity,
+    SensorStateClass,
 )
-from homeassistant.const import (
-    ENERGY_WATT_HOUR,
-    TEMP_CELSIUS,
-)
+from homeassistant.const import ENERGY_WATT_HOUR, TEMP_CELSIUS
+from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.typing import StateType
 
 from .const import EMF_REPORTS, OUTDOOR_TEMP, REPORTS
 from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
 from .utils import get_coordinator
-from homeassistant.helpers.entity import EntityCategory
 
 _LOGGER = logging.getLogger(__name__)
 
