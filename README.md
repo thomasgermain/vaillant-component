@@ -112,3 +112,6 @@ Modes mapping:
 | QM_SYSTEM_OFF | `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom) |
 | HOLIDAY | `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom) |
 | QM_COOLING_FOR_X_DAYS | no hvac & `PRESET_COOLING_FOR_X_DAYS` |
+
+---
+<a href="https://www.buymeacoffee.com/tgermain" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;" ></a>
