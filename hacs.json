@@ -2,5 +2,5 @@
   "name": "multimatic",
   "domains": ["binary_sensor", "climate", "fan", "sensor", "water_heater"],
   "render_readme": true,
-  "homeassistant": "2022.4.0"
+  "homeassistant": "2022.5.0"
 }

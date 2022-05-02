@@ -5,10 +5,8 @@ from pymultimatic.model import HotWater, OperatingModes, QuickModes
 
 from homeassistant.components.water_heater import (
     DOMAIN,
-    SUPPORT_AWAY_MODE,
-    SUPPORT_OPERATION_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
     WaterHeaterEntity,
+    WaterHeaterEntityFeature,
 )
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 
@@ -20,7 +18,9 @@ from .utils import get_coordinator
 _LOGGER = logging.getLogger(__name__)
 
 SUPPORTED_FLAGS = (
-    SUPPORT_TARGET_TEMPERATURE | SUPPORT_OPERATION_MODE | SUPPORT_AWAY_MODE
+    WaterHeaterEntityFeature.TARGET_TEMPERATURE
+    | WaterHeaterEntityFeature.OPERATION_MODE
+    | WaterHeaterEntityFeature.AWAY_MODE
 )
 ATTR_CURRENT_TEMPERATURE = "current_temperature"
 ATTR_TIME_PROGRAM = "time_program"

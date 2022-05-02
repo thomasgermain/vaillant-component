@@ -579,7 +579,7 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
     @property
     def is_on(self):
         """Return true if the binary sensor is on."""
-        return False if self.coordinator.data is None else True
+        return self.coordinator.data is not None
 
     @property
     def state_attributes(self):

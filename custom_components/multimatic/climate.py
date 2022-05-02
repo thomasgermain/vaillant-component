@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import abc
+from collections.abc import Mapping
 import logging
-from typing import Any, Mapping
+from typing import Any
 
 from pymultimatic.model import (
     ActiveFunction,
@@ -16,24 +17,19 @@ from pymultimatic.model import (
     Zone,
 )
 
-from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate import (
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACAction,
+    HVACMode,
+)
 from homeassistant.components.climate.const import (
-    CURRENT_HVAC_COOL,
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_IDLE,
     DOMAIN,
-    HVAC_MODE_AUTO,
-    HVAC_MODE_COOL,
-    HVAC_MODE_FAN_ONLY,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_OFF,
     PRESET_AWAY,
     PRESET_COMFORT,
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
 )
 from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
 from homeassistant.helpers import entity_platform
@@ -62,9 +58,9 @@ from .utils import get_coordinator
 _LOGGER = logging.getLogger(__name__)
 
 _FUNCTION_TO_HVAC_ACTION: dict[ActiveFunction, str] = {
-    ActiveFunction.COOLING: CURRENT_HVAC_COOL,
-    ActiveFunction.HEATING: CURRENT_HVAC_HEAT,
-    ActiveFunction.STANDBY: CURRENT_HVAC_IDLE,
+    ActiveFunction.COOLING: HVACAction.COOLING,
+    ActiveFunction.HEATING: HVACAction.HEATING,
+    ActiveFunction.STANDBY: HVACAction.IDLE,
 }
 
 
@@ -217,17 +213,17 @@ class RoomClimate(MultimaticClimate):
     """Climate for a room."""
 
     _MULTIMATIC_TO_HA: dict[Mode, list] = {
-        OperatingModes.AUTO: [HVAC_MODE_AUTO, PRESET_COMFORT],
-        OperatingModes.OFF: [HVAC_MODE_OFF, PRESET_NONE],
+        OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
+        OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
         OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
-        QuickModes.SYSTEM_OFF: [HVAC_MODE_OFF, PRESET_SYSTEM_OFF],
-        QuickModes.HOLIDAY: [HVAC_MODE_OFF, PRESET_HOLIDAY],
+        QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
         OperatingModes.MANUAL: [None, PRESET_MANUAL],
     }
 
     _HA_MODE_TO_MULTIMATIC = {
-        HVAC_MODE_AUTO: OperatingModes.AUTO,
-        HVAC_MODE_OFF: OperatingModes.OFF,
+        HVACMode.AUTO: OperatingModes.AUTO,
+        HVACMode.OFF: OperatingModes.OFF,
     }
 
     _HA_PRESET_TO_MULTIMATIC = {
@@ -273,20 +269,22 @@ class RoomClimate(MultimaticClimate):
             if (
                 self.active_mode.current
                 in (OperatingModes.MANUAL, OperatingModes.QUICK_VETO)
-                and self.hvac_action == CURRENT_HVAC_HEAT
+                and self.hvac_action == HVACAction.HEATING
             ):
-                return HVAC_MODE_HEAT
+                return HVACMode.HEAT
         return hvac_mode
 
     @property
-    def hvac_modes(self) -> list[str]:
+    def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes."""
         return self._supported_hvac
 
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+        return (
+            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        )
 
     @property
     def min_temp(self):
@@ -313,7 +311,7 @@ class RoomClimate(MultimaticClimate):
             self, float(kwargs.get(ATTR_TEMPERATURE))
         )
 
-    async def async_set_hvac_mode(self, hvac_mode: str) -> None:
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         mode = RoomClimate._HA_MODE_TO_MULTIMATIC[hvac_mode]
         await self.coordinator.api.set_room_operating_mode(self, mode)
@@ -366,26 +364,26 @@ class ZoneClimate(MultimaticClimate):
     """Climate for a zone."""
 
     _MULTIMATIC_TO_HA: dict[Mode, list] = {
-        OperatingModes.AUTO: [HVAC_MODE_AUTO, PRESET_COMFORT],
+        OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
         OperatingModes.DAY: [None, PRESET_DAY],
         OperatingModes.NIGHT: [None, PRESET_SLEEP],
-        OperatingModes.OFF: [HVAC_MODE_OFF, PRESET_NONE],
+        OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
         OperatingModes.ON: [None, PRESET_COOLING_ON],
         OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
-        QuickModes.ONE_DAY_AT_HOME: [HVAC_MODE_AUTO, PRESET_HOME],
+        QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
         QuickModes.PARTY: [None, PRESET_PARTY],
-        QuickModes.VENTILATION_BOOST: [HVAC_MODE_FAN_ONLY, PRESET_NONE],
-        QuickModes.ONE_DAY_AWAY: [HVAC_MODE_OFF, PRESET_AWAY],
-        QuickModes.SYSTEM_OFF: [HVAC_MODE_OFF, PRESET_SYSTEM_OFF],
-        QuickModes.HOLIDAY: [HVAC_MODE_OFF, PRESET_HOLIDAY],
+        QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],
+        QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
+        QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
         QuickModes.COOLING_FOR_X_DAYS: [None, PRESET_COOLING_FOR_X_DAYS],
     }
 
     _HA_MODE_TO_MULTIMATIC = {
-        HVAC_MODE_AUTO: OperatingModes.AUTO,
-        HVAC_MODE_OFF: OperatingModes.OFF,
-        HVAC_MODE_FAN_ONLY: QuickModes.VENTILATION_BOOST,
-        HVAC_MODE_COOL: QuickModes.COOLING_FOR_X_DAYS,
+        HVACMode.AUTO: OperatingModes.AUTO,
+        HVACMode.OFF: OperatingModes.OFF,
+        HVACMode.FAN_ONLY: QuickModes.VENTILATION_BOOST,
+        HVACMode.COOL: QuickModes.COOLING_FOR_X_DAYS,
     }
 
     _HA_PRESET_TO_MULTIMATIC = {
@@ -412,10 +410,10 @@ class ZoneClimate(MultimaticClimate):
         if not zone.cooling:
             self._supported_presets.remove(PRESET_COOLING_ON)
             self._supported_presets.remove(PRESET_COOLING_FOR_X_DAYS)
-            self._supported_hvac.remove(HVAC_MODE_COOL)
+            self._supported_hvac.remove(HVACMode.COOL)
 
         if not ventilation:
-            self._supported_hvac.remove(HVAC_MODE_FAN_ONLY)
+            self._supported_hvac.remove(HVACMode.FAN_ONLY)
 
         self._zone_id = zone.id
 
@@ -448,25 +446,27 @@ class ZoneClimate(MultimaticClimate):
                     QuickModes.PARTY,
                     OperatingModes.QUICK_VETO,
                 ]
-                and self.hvac_action == CURRENT_HVAC_HEAT
+                and self.hvac_action == HVACAction.HEATING
             ):
-                return HVAC_MODE_HEAT
+                return HVACMode.HEAT
             if (
                 self.preset_mode in (PRESET_COOLING_ON, PRESET_COOLING_FOR_X_DAYS)
-                and self.hvac_action == CURRENT_HVAC_COOL
+                and self.hvac_action == HVACAction.COOLING
             ):
-                return HVAC_MODE_COOL
-        return hvac_mode if hvac_mode else HVAC_MODE_OFF
+                return HVACMode.COOL
+        return hvac_mode if hvac_mode else HVACMode.OFF
 
     @property
-    def hvac_modes(self) -> list[str]:
+    def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes."""
         return self._supported_hvac
 
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+        return (
+            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        )
 
     @property
     def min_temp(self):
