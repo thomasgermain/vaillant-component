@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
-from typing import Any, Mapping
+from typing import Any
 
 from pymultimatic.model import OperatingModes, QuickModes
 
-from homeassistant.components.fan import DOMAIN, SUPPORT_PRESET_MODE, FanEntity
+from homeassistant.components.fan import DOMAIN, FanEntity, FanEntityFeature
 from homeassistant.helpers import entity_platform
 
 from .const import ATTR_LEVEL, VENTILATION
@@ -107,7 +108,7 @@ class MultimaticFan(MultimaticEntity, FanEntity):
     @property
     def supported_features(self) -> int:
         """Flag supported features."""
-        return SUPPORT_PRESET_MODE
+        return FanEntityFeature.PRESET_MODE
 
     @property
     def preset_mode(self) -> str | None:
