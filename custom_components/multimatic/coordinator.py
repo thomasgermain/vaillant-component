@@ -278,7 +278,7 @@ class MultimaticApi:
             room.quick_veto = None
 
         if isinstance(mode, QuickMode):
-            await self._manager.set_quick_mode(mode)
+            await self._hard_set_quick_mode(mode)
             self._quick_mode = mode
             touch_system = True
         else:
@@ -301,7 +301,7 @@ class MultimaticApi:
             zone.quick_veto = None
 
         if isinstance(mode, QuickMode):
-            await self._manager.set_quick_mode(mode)
+            await self._hard_set_quick_mode(mode)
             self._quick_mode = mode
             touch_system = True
         else:
@@ -337,11 +337,7 @@ class MultimaticApi:
     async def set_quick_mode(self, mode, duration):
         """Set quick mode (remove previous one)."""
         await self._remove_quick_mode_no_refresh()
-        if duration is None and mode == QuickModes.COOLING_FOR_X_DAYS.name:
-            duration = 1
-        qmode = QuickModes.get(mode, duration)
-        await self._manager.set_quick_mode(qmode)
-        self._quick_mode = qmode
+        self._quick_mode = await self._hard_set_quick_mode(mode, duration)
         await self._refresh_entities()
 
     async def set_quick_veto(self, entity, temperature, duration=None):
@@ -380,7 +376,7 @@ class MultimaticApi:
         touch_system = await self._remove_quick_mode_or_holiday(entity)
 
         if isinstance(mode, QuickMode):
-            await self._manager.set_quick_mode(mode)
+            await self._hard_set_quick_mode(mode)
             self._quick_mode = mode
             touch_system = True
         else:
@@ -415,6 +411,27 @@ class MultimaticApi:
     async def _hard_remove_quick_mode(self):
         await self._manager.remove_quick_mode()
         self._quick_mode = None
+
+    async def _hard_set_quick_mode(
+        self, mode: str | QuickMode, duration: int = None
+    ) -> QuickMode:
+        new_mode: QuickMode
+
+        if isinstance(mode, QuickMode):
+            new_mode = mode
+            if (
+                mode.name == QuickModes.COOLING_FOR_X_DAYS.name
+                and mode.duration is None
+            ):
+                new_mode = QuickModes.get(mode.name, 1)
+        else:
+            new_duration = duration
+            if mode == QuickModes.COOLING_FOR_X_DAYS.name and duration is None:
+                new_duration = 1
+            new_mode = QuickModes.get(mode, new_duration)
+
+        await self._manager.set_quick_mode(new_mode)
+        return new_mode
 
     async def _remove_holiday_mode_no_refresh(self):
         await self._manager.remove_holiday_mode()
