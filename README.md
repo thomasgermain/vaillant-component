@@ -1,4 +1,4 @@
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/thomasgermain/vaillant-component?style=for-the-badge)
 
 # Multimatic integration
