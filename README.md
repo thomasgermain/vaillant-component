@@ -9,6 +9,9 @@ Ideas are welcome ! Don't hesitate to create issue to suggest something, it will
 
 **This integration is NOT compatible with sensoAPP, only with multiMATIC app.**
 
+**This integration is NOT likely to be compatible with VR921 (even if you use multiMATIC app). You may still have
+some entities, but not all.**
+
 ## Installations
 - Through HACS [custom repositories](https://hacs.xyz/docs/faq/custom_repositories/) !
 - Otherwise, download the zip from the latest release and copy `multimatic` folder and put it inside your `custom_components` folder.
