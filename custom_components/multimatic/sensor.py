@@ -12,7 +12,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import ENERGY_WATT_HOUR, TEMP_CELSIUS
+from homeassistant.const import UnitOfEnergy, UnitOfTemperature
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.typing import StateType
 
@@ -75,7 +75,7 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def name(self) -> str:
@@ -204,7 +204,7 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
     @property
     def native_unit_of_measurement(self) -> str | None:
         """Return the unit of measurement of this entity, if any."""
-        return ENERGY_WATT_HOUR
+        return UnitOfEnergy.WATT_HOUR
 
     @property
     def device_info(self):

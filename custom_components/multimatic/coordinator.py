@@ -394,6 +394,10 @@ class MultimaticApi:
         """Set fan night level."""
         await self._manager.set_ventilation_night_level(entity.component.id, level)
 
+    async def set_datetime(self, datetime):
+        """Set datetime."""
+        await self._manager.set_datetime(datetime)
+
     async def _remove_quick_mode_no_refresh(self, entity=None):
         removed = False
 
@@ -413,7 +417,7 @@ class MultimaticApi:
         self._quick_mode = None
 
     async def _hard_set_quick_mode(
-        self, mode: str | QuickMode, duration: int = None
+        self, mode: str | QuickMode, duration: int | None = None
     ) -> QuickMode:
         new_mode: QuickMode
 
@@ -489,8 +493,8 @@ class MultimaticCoordinator(DataUpdateCoordinator):
 
     def find_component(
         self, comp_id
-    ) -> Room | Zone | Ventilation | HotWater | Circulation:
-        """Find component by it's id."""
+    ) -> Room | Zone | Ventilation | HotWater | Circulation | None:
+        """Find component by its id."""
         for comp in self.data:
             if comp.id == comp_id:
                 return comp

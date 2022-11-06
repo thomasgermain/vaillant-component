@@ -10,9 +10,23 @@ set_quick_mode:
     quick_mode:
       description: Name of the quick mode (required)
       example: QM_HOTWATER_BOOST, QM_VENTILATION_BOOST, QM_ONE_DAY_AWAY, QM_SYSTEM_OFF, QM_ONE_DAY_AT_HOME, QM_PARTY
+      selector:
+        select:
+          options:
+            - QM_HOTWATER_BOOST
+            - QM_VENTILATION_BOOST
+            - QM_ONE_DAY_AWAY
+            - QM_SYSTEM_OFF
+            - QM_ONE_DAY_AT_HOME
+            - QM_PARTY
     duration:
       description: (int) number of days the quick mode should last
       example: 3
+      selector:
+        number:
+          min: 0
+          max: 7
+          mode: box
 
 set_holiday_mode:
   description: Set holiday mode
@@ -20,12 +34,21 @@ set_holiday_mode:
     start_date:
       description: Start date of the holiday mode YYYY-MM-DD format (required)
       example: "2019-11-25"
+      selector:
+        date:
     end_date:
       description: End date of the holiday mode, YYYY-MM-DD format (required)
       example: "2019-11-26"
+      selector:
+        date:
     temperature:
       description: temperature to maintin while holiday mode is active (required)
       example: 15
+      selector:
+        number:
+          min: 5
+          max: 30
+          mode: box
 
 set_quick_veto:
   description: Set a quick veto for a climate entity
@@ -33,12 +56,26 @@ set_quick_veto:
     entity_id:
       description: Entity id from where to set a quick veto
       example: climate.bathroom
+      selector:
+        entity:
+          integration: multimatic
+          domain: climate
     temperature:
       description: Target temperature to be applied while quick veto is running on
       example: 25
+      selector:
+        number:
+          min: 5
+          max: 30
+          mode: box
     duration:
       description: Duration (in minutes) of the quick veto. Min 30min, max 1440 (24 hours). If not specified, the default (configured) duration is applied.
-      example: "60"
+      example: 60
+      selector:
+        number:
+          min: 30
+          max: 1440
+          mode: box
 
 remove_quick_veto:
   description: Remove a quick veto for a climate entity
@@ -46,6 +83,10 @@ remove_quick_veto:
     entity_id:
       description: Entity id from where to remove quick veto
       example: climate.bathroom
+      selector:
+        entity:
+          integration: multimatic
+          domain: climate
 
 request_hvac_update:
   description: Ask multimatic API to get data from your installation.
@@ -56,9 +97,18 @@ set_ventilation_day_level:
     entity_id:
       description: Entity id of the fan
       example: fan.bathroom
+      selector:
+        entity:
+          integration: multimatic
+          domain: fan
     level:
       description: Level to set (required)
       example: 1
+      selector:
+        number:
+          min: 1
+          max: 7
+          mode: box
 
 set_ventilation_night_level:
   description: Set night level ventilation
@@ -66,6 +116,24 @@ set_ventilation_night_level:
     entity_id:
       description: Entity id of the fan
       example: fan.bathroom
+      selector:
+        entity:
+          integration: multimatic
+          domain: fan
     level:
       description: Level to set (required)
       example: 2
+      selector:
+        number:
+          min: 1
+          max: 7
+          mode: box
+
+set_datetime:
+  description: Set multimatic system datetime
+  fields:
+    datetime:
+      description: datetime to set
+      example: 2022-11-06T11:11:38
+      selector:
+        datetime:

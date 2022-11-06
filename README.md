@@ -75,6 +75,7 @@ For the `binary_sensor.multimtic_holiday`, when on, you have the start date, end
 - `multimatic.request_hvac_update` to tell multimatic API to fetch data from your installation and made them available in the API
 - `multimatic.set_ventilation_day_level` to set ventilation day level
 - `multimatic.set_ventilation_night_level` to set ventilation night level
+- `multimatic.set_datetime` to set the current date time of the system
 
 This will allow you to create some buttons in UI to activate/deactivate quick mode or holiday mode with a single click
 

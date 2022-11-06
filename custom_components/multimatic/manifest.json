@@ -11,9 +11,7 @@
   "zeroconf": [],
   "homekit": {},
   "dependencies": [],
-  "codeowners": [
-    "@thomasgermain"
-  ],
-  "version": "1.12.7",
+  "codeowners": ["@thomasgermain"],
+    "version": "1.12.8",
   "iot_class": "cloud_polling"
 }

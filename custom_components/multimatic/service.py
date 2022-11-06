@@ -1,13 +1,16 @@
 """multimatic services."""
+import datetime
 import logging
 
 from pymultimatic.model import QuickMode, QuickModes
 import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
+import homeassistant.helpers.config_validation as cv
 from homeassistant.util.dt import parse_date
 
 from .const import (
+    ATTR_DATE_TIME,
     ATTR_DURATION,
     ATTR_END_DATE,
     ATTR_LEVEL,
@@ -32,6 +35,7 @@ SERVICE_REMOVE_QUICK_VETO = "remove_quick_veto"
 SERVICE_REQUEST_HVAC_UPDATE = "request_hvac_update"
 SERVICE_SET_VENTILATION_DAY_LEVEL = "set_ventilation_day_level"
 SERVICE_SET_VENTILATION_NIGHT_LEVEL = "set_ventilation_night_level"
+SERVICE_SET_DATETIME = "set_datetime"
 
 SERVICE_REMOVE_QUICK_MODE_SCHEMA = vol.Schema({})
 SERVICE_REMOVE_HOLIDAY_MODE_SCHEMA = vol.Schema({})
@@ -77,6 +81,12 @@ SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA = vol.Schema(
 
 SERVICE_SET_VENTILATION_NIGHT_LEVEL_SCHEMA = SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA
 
+SERVICE_SET_DATETIME_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_DATE_TIME): cv.datetime,
+    }
+)
+
 SERVICES = {
     SERVICE_REMOVE_QUICK_MODE: {
         "schema": SERVICE_REMOVE_QUICK_MODE_SCHEMA,
@@ -106,6 +116,7 @@ SERVICES = {
         "schema": SERVICE_SET_VENTILATION_DAY_LEVEL_SCHEMA,
         "entity": True,
     },
+    SERVICE_SET_DATETIME: {"schema": SERVICE_SET_DATETIME_SCHEMA},
 }
 
 
@@ -151,3 +162,8 @@ class MultimaticServiceHandler:
     async def request_hvac_update(self, data):
         """Ask multimatic API to get data from the installation."""
         await self.api.request_hvac_update()
+
+    async def set_datetime(self, data):
+        """Set date time."""
+        date_t: datetime = data.get(ATTR_DATE_TIME, datetime.datetime.now())
+        await self.api.set_datetime(date_t)
