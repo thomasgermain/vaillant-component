@@ -42,6 +42,7 @@ ATTR_END_DATE = "end_date"
 ATTR_TEMPERATURE = "temperature"
 ATTR_DURATION = "duration"
 ATTR_LEVEL = "level"
+ATTR_DATE_TIME = "datetime"
 
 SERVICES_HANDLER = "services_handler"
 
@@ -73,5 +74,5 @@ COORDINATOR_LIST: dict[str, timedelta | None] = {
     HVAC_STATUS: None,
     FACILITY_DETAIL: timedelta(days=1),
     GATEWAY: timedelta(days=1),
-    EMF_REPORTS: timedelta(minutes=30),
+    EMF_REPORTS: None,
 }
