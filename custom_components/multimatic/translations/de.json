@@ -3,28 +3,28 @@
     "step": {
       "user": {
         "data": {
-          "password": "Password",
-          "username": "Username",
-          "application": "Application",
-          "serial_number": "Serial number"
+          "password": "Passwort",
+          "username": "Benutzername",
+          "application": "Applikation",
+          "serial_number": "Seriennummer"
         },
-        "title": "Connection information (same as multiMATIC application)"
+        "title": "Verbindungsinformationen (wie in der mutliMATIC / sensoAPP"
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect, please try again",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
+      "cannot_connect": "Verbindung fehlgeschlagen, bitte erneut versuchen",
+      "invalid_auth": "Benutzer oder Passwort falsch",
+      "unknown": "Unbekannter Fehler"
     },
     "abort": {
-      "already_configured": "Only one configuration is allowed"
+      "already_configured": "Nur eine Verbindung erlaubt"
     }
   },
   "options": {
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Minutes between scans"
+          "scan_interval": "Minuten zwischen Scans"
         }
       }
     }
