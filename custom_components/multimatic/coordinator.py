@@ -26,7 +26,7 @@ import pymultimatic.utils as multimatic_utils
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -61,7 +61,7 @@ class MultimaticApi:
         self._manager = pymultimatic.systemmanager.SystemManager(
             user=username,
             password=password,
-            session=async_get_clientsession(hass),
+            session=async_create_clientsession(hass),
             serial=self.serial,
         )
 
@@ -528,8 +528,9 @@ class MultimaticCoordinator(DataUpdateCoordinator):
         try:
             self.logger.debug("calling %s", self._method)
             return await getattr(self.api, self._method)()
-        except ApiError:
-            await self._safe_logout()
+        except ApiError as err:
+            if err.status == 401:
+                await self._safe_logout()
             raise
 
     async def _fetch_data_if_needed(self):
