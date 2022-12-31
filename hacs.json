@@ -1,5 +1,5 @@
 {
   "name": "multimatic",
   "render_readme": true,
-  "homeassistant": "2023.01.0"
+  "homeassistant": "2022.11.0"
 }
