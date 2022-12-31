@@ -18,21 +18,23 @@ from pymultimatic.model import (
 )
 
 from homeassistant.components.climate import (
-    ClimateEntity,
-    ClimateEntityFeature,
-    HVACAction,
-    HVACMode,
-)
-from homeassistant.components.climate.const import (
     DOMAIN,
     PRESET_AWAY,
     PRESET_COMFORT,
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACAction,
+    HVACMode,
 )
-from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SERVICES
 from .const import (
@@ -64,9 +66,11 @@ _FUNCTION_TO_HVAC_ACTION: dict[ActiveFunction, str] = {
 }
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up the multimatic climate platform."""
-    climates = []
+    climates: list[MultimaticClimate] = []
     zones_coo = get_coordinator(hass, ZONES, entry.unique_id)
     rooms_coo = get_coordinator(hass, ROOMS, entry.unique_id)
     ventilation_coo = get_coordinator(hass, VENTILATION, entry.unique_id)
@@ -86,7 +90,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(climates)
 
     if len(climates) > 0:
-        platform = entity_platform.current_platform.get()
+        platform = entity_platform.async_get_current_platform()
         platform.async_register_entity_service(
             SERVICE_REMOVE_QUICK_VETO,
             SERVICES[SERVICE_REMOVE_QUICK_VETO]["schema"],
@@ -97,8 +101,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
             SERVICES[SERVICE_SET_QUICK_VETO]["schema"],
             SERVICE_SET_QUICK_VETO,
         )
-
-    return True
 
 
 class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
@@ -134,22 +136,22 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
         """Return the room or the zone."""
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.component
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float:
         """Return the temperature we try to reach."""
         return self.active_mode.target
 
     @property
-    def current_temperature(self):
+    def current_temperature(self) -> float:
         """Return the current temperature."""
         return self.component.temperature
 
@@ -244,17 +246,17 @@ class RoomClimate(MultimaticClimate):
         self._zone_coo = zone_coo
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """Return device specific attributes."""
         devices = self.component.devices
         if len(devices) == 1:  # Can't link an entity to multiple devices
-            return {
-                "identifiers": {(MULTIMATIC, devices[0].sgtin)},
-                "name": devices[0].name,
-                "manufacturer": "Vaillant",
-                "model": devices[0].device_type,
-            }
-        return {}
+            return DeviceInfo(
+                identifiers={(MULTIMATIC, devices[0].sgtin)},
+                name=devices[0].name,
+                manufacturer="Vaillant",
+                model=devices[0].device_type,
+            )
+        return None
 
     @property
     def component(self) -> Room:
@@ -280,19 +282,19 @@ class RoomClimate(MultimaticClimate):
         return self._supported_hvac
 
     @property
-    def supported_features(self):
+    def supported_features(self) -> ClimateEntityFeature:
         """Return the list of supported features."""
         return (
             ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         )
 
     @property
-    def min_temp(self):
+    def min_temp(self) -> float:
         """Return the minimum temperature."""
         return Room.MIN_TARGET_TEMP
 
     @property
-    def max_temp(self):
+    def max_temp(self) -> float:
         """Return the maximum temperature."""
         return Room.MAX_TARGET_TEMP
 
@@ -305,10 +307,10 @@ class RoomClimate(MultimaticClimate):
             )
         return None
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         await self.coordinator.api.set_room_target_temperature(
-            self, float(kwargs.get(ATTR_TEMPERATURE))
+            self, kwargs.get(ATTR_TEMPERATURE)
         )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -433,7 +435,7 @@ class ZoneClimate(MultimaticClimate):
         return self.coordinator.find_component(self._zone_id)
 
     @property
-    def hvac_mode(self):
+    def hvac_mode(self) -> HVACMode:
         """Get the hvac mode based on multimatic mode."""
         current_mode = self.active_mode.current
         hvac_mode = ZoneClimate._MULTIMATIC_TO_HA[current_mode][0]
@@ -462,28 +464,28 @@ class ZoneClimate(MultimaticClimate):
         return self._supported_hvac
 
     @property
-    def supported_features(self):
+    def supported_features(self) -> ClimateEntityFeature:
         """Return the list of supported features."""
         return (
             ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         )
 
     @property
-    def min_temp(self):
+    def min_temp(self) -> float:
         """Return the minimum temperature."""
         return Zone.MIN_TARGET_HEATING_TEMP
 
     @property
-    def max_temp(self):
+    def max_temp(self) -> float:
         """Return the maximum temperature."""
         return Zone.MAX_TARGET_TEMP
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float:
         """Return the temperature we try to reach."""
         return self.active_mode.target
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
         temp = kwargs.get(ATTR_TEMPERATURE)
 
@@ -493,7 +495,7 @@ class ZoneClimate(MultimaticClimate):
         else:
             _LOGGER.debug("Nothing to do")
 
-    async def async_set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         mode = ZoneClimate._HA_MODE_TO_MULTIMATIC[hvac_mode]
         await self.coordinator.api.set_zone_operating_mode(self, mode)

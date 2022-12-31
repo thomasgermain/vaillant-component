@@ -12,8 +12,11 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfEnergy, UnitOfTemperature
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
 from .const import EMF_REPORTS, OUTDOOR_TEMP, REPORTS
@@ -31,9 +34,11 @@ UNIT_TO_DEVICE_CLASS = {
 }
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up the multimatic sensors."""
-    sensors = []
+    sensors: list[MultimaticEntity] = []
     outdoor_temp_coo = get_coordinator(hass, OUTDOOR_TEMP, entry.unique_id)
     reports_coo = get_coordinator(hass, REPORTS, entry.unique_id)
     emf_reports_coo = get_coordinator(hass, EMF_REPORTS, entry.unique_id)
@@ -52,7 +57,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
     _LOGGER.info("Adding %s sensor entities", len(sensors))
 
     async_add_entities(sensors)
-    return True
 
 
 class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
@@ -68,7 +72,7 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
         return self.coordinator.data
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.coordinator.data is not None
 
@@ -83,7 +87,7 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
         return "Outdoor temperature"
 
     @property
-    def device_class(self) -> str:
+    def device_class(self) -> SensorDeviceClass:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return SensorDeviceClass.TEMPERATURE
 
@@ -129,7 +133,7 @@ class ReportSensor(MultimaticEntity, SensorEntity):
         return self.report.value
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.report is not None
 
@@ -139,14 +143,14 @@ class ReportSensor(MultimaticEntity, SensorEntity):
         return self._unit
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device specific attributes."""
-        return {
-            "identifiers": {(DOMAIN, self._device_id)},
-            "name": self._device_name,
-            "manufacturer": "Vaillant",
-            "model": self.report.device_id,
-        }
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._device_id)},
+            name=self._device_name,
+            manufacturer="Vaillant",
+            model=self.report.device_id,
+        )
 
     @property
     def state_class(self) -> str | None:
@@ -154,7 +158,7 @@ class ReportSensor(MultimaticEntity, SensorEntity):
         return SensorStateClass.MEASUREMENT
 
     @property
-    def device_class(self) -> str | None:
+    def device_class(self) -> SensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return self._class
 
@@ -192,12 +196,12 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
         )
 
     @property
-    def native_value(self):
+    def native_value(self) -> float:
         """Return the state of the entity."""
         return self.report.value
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.report is not None
 
@@ -207,17 +211,17 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
         return UnitOfEnergy.WATT_HOUR
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device specific attributes."""
-        return {
-            "identifiers": {(DOMAIN, self.report.device_id)},
-            "name": self.report.device_name,
-            "manufacturer": "Vaillant",
-            "model": self.report.device_id,
-        }
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.report.device_id)},
+            name=self.report.device_name,
+            manufacturer="Vaillant",
+            model=self.report.device_id,
+        )
 
     @property
-    def device_class(self) -> str | None:
+    def device_class(self) -> SensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return SensorDeviceClass.ENERGY
 

@@ -1,14 +1,19 @@
 """Interfaces with multimatic water heater."""
 import logging
+from typing import Any
 
 from pymultimatic.model import HotWater, OperatingModes, QuickModes
 
 from homeassistant.components.water_heater import (
     DOMAIN,
+    UnitOfTemperature,
     WaterHeaterEntity,
     WaterHeaterEntityFeature,
 )
-from homeassistant.const import ATTR_TEMPERATURE, TEMP_CELSIUS
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import ATTR_TEMPERATURE
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DHW
 from .coordinator import MultimaticCoordinator
@@ -33,7 +38,9 @@ AWAY_MODES = [
 ]
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up water_heater platform."""
     entities = []
     coordinator = get_coordinator(hass, DHW, entry.unique_id)
@@ -42,7 +49,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
         entities.append(MultimaticWaterHeater(coordinator))
 
     async_add_entities(entities)
-    return True
 
 
 class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
@@ -70,22 +76,22 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
         return self.coordinator.api.get_active_mode(self.component)
 
     @property
-    def supported_features(self):
+    def supported_features(self) -> WaterHeaterEntityFeature:
         """Return the list of supported features.
 
         !! It could be misleading here, since when heater is not heating,
-        target temperature if fixed (35 °C) - The API doesn't allow to change
+        target temperature is fixed (5 °C) - The API doesn't allow to change
         this setting. It means if the user wants to change the target
         temperature, it will always be the target temperature when the
         heater is on function. See example below:
 
-        1. Target temperature when heater is off is 35 (this is a fixed
+        1. Target temperature when heater is off is 5 (this is a fixed
         setting)
         2. Target temperature when heater is on is for instance 50 (this is a
         configurable setting)
         3. While heater is off, user changes target_temperature to 45. It will
         actually change the target temperature from 50 to 45
-        4. While heater is off, user will still see 35 in UI
+        4. While heater is off, user will still see 5 in UI
         (even if he changes to 45 before)
         5. When heater will go on, user will see the target temperature he set
          at point 3 -> 45.
@@ -94,63 +100,61 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
         is off, but it means the user will be able to change the target
          temperature only when the heater is ON (which seems odd to me)
         """
-        if self.active_mode != QuickModes.HOLIDAY:
-            return SUPPORTED_FLAGS
-        return 0
+        return SUPPORTED_FLAGS
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.component is not None
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         """Return the unit of measurement used by the platform."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
-    def target_temperature(self):
+    def target_temperature(self) -> float:
         """Return the temperature we try to reach."""
         return self.active_mode.target
 
     @property
-    def current_temperature(self):
+    def current_temperature(self) -> float:
         """Return the current temperature."""
         return self.component.temperature
 
     @property
-    def min_temp(self):
+    def min_temp(self) -> float:
         """Return the minimum temperature."""
         return HotWater.MIN_TARGET_TEMP
 
     @property
-    def max_temp(self):
+    def max_temp(self) -> float:
         """Return the maximum temperature."""
         return HotWater.MAX_TARGET_TEMP
 
     @property
-    def current_operation(self):
+    def current_operation(self) -> str:
         """Return current operation ie. eco, electric, performance, ..."""
         return self.active_mode.current.name
 
     @property
-    def operation_list(self):
+    def operation_list(self) -> list[str]:
         """Return current operation ie. eco, electric, performance, ..."""
         if self.active_mode.current != QuickModes.HOLIDAY:
             return list(self._operations.keys())
         return []
 
     @property
-    def is_away_mode_on(self):
+    def is_away_mode_on(self) -> bool:
         """Return true if away mode is on."""
         return self.active_mode.current in AWAY_MODES
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
-        target_temp = float(kwargs.get(ATTR_TEMPERATURE))
+        target_temp = kwargs.get(ATTR_TEMPERATURE)
         await self.coordinator.api.set_hot_water_target_temperature(self, target_temp)
 
-    async def async_set_operation_mode(self, operation_mode):
+    async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new target operation mode."""
         if operation_mode in self._operations.keys():
             mode = self._operations[operation_mode]
@@ -158,13 +162,13 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
         else:
             _LOGGER.debug("Operation mode %s is unknown", operation_mode)
 
-    async def async_turn_away_mode_on(self):
+    async def async_turn_away_mode_on(self) -> None:
         """Turn away mode on."""
         await self.coordinator.api.set_hot_water_operating_mode(
             self, OperatingModes.OFF
         )
 
-    async def async_turn_away_mode_off(self):
+    async def async_turn_away_mode_off(self) -> None:
         """Turn away mode off."""
         await self.coordinator.api.set_hot_water_operating_mode(
             self, OperatingModes.AUTO

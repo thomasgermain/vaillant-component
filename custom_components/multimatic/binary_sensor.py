@@ -1,7 +1,9 @@
 """Interfaces with Multimatic binary sensors."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
+from typing import Any
 
 from pymultimatic.model import Device, OperatingModes, QuickModes, Room, SettingModes
 
@@ -10,8 +12,11 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
 from .const import (
@@ -32,9 +37,11 @@ from .utils import get_coordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up the multimatic binary sensor platform."""
-    sensors = []
+    sensors: list[MultimaticEntity] = []
 
     dhw_coo = get_coordinator(hass, DHW, entry.unique_id)
     if dhw_coo.data and dhw_coo.data.circulation:
@@ -71,7 +78,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
     _LOGGER.info("Adding %s binary sensor entities", len(sensors))
 
     async_add_entities(sensors)
-    return True
 
 
 class CirculationSensor(MultimaticEntity, BinarySensorEntity):
@@ -82,7 +88,7 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
         super().__init__(coordinator, DOMAIN, "dhw_circulation")
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         a_mode = self.active_mode
         return (
@@ -91,7 +97,7 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
         )
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return (
             super().available
@@ -115,7 +121,7 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
         return EntityCategory.DIAGNOSTIC
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.RUNNING
 
@@ -131,17 +137,17 @@ class RoomWindow(MultimaticEntity, BinarySensorEntity):
         self._room_id = room.id
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         return self.room.window_open
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.room
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.WINDOW
 
@@ -174,18 +180,18 @@ class RoomDeviceEntity(MultimaticEntity, BinarySensorEntity):
         self._sgtin = device.sgtin
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device specific attributes."""
         device = self.device
-        return {
-            "identifiers": {(MULTIMATIC, device.sgtin)},
-            "name": device.name,
-            "manufacturer": "Vaillant",
-            "model": device.device_type,
-        }
+        return DeviceInfo(
+            identifiers={(MULTIMATIC, device.sgtin)},
+            name=device.name,
+            manufacturer="Vaillant",
+            model=device.device_type,
+        )
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return the state attributes."""
         device = self.device
         return {
@@ -195,7 +201,7 @@ class RoomDeviceEntity(MultimaticEntity, BinarySensorEntity):
         }
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.device
 
@@ -229,12 +235,12 @@ class RoomDeviceChildLock(RoomDeviceEntity):
         self._room_id = room.id
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """According to the doc, true means unlock, false lock."""
         return not self.room.child_lock
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.room
 
@@ -244,7 +250,7 @@ class RoomDeviceChildLock(RoomDeviceEntity):
         return self.coordinator.find_component(self._room_id)
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.LOCK
 
@@ -262,12 +268,12 @@ class RoomDeviceBattery(RoomDeviceEntity):
         super().__init__(coordinator, device, BinarySensorDeviceClass.BATTERY)
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """According to the doc, true means normal, false low."""
         return self.device.battery_low
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.BATTERY
 
@@ -285,12 +291,12 @@ class RoomDeviceConnectivity(RoomDeviceEntity):
         super().__init__(coordinator, device, BinarySensorDeviceClass.CONNECTIVITY)
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """According to the doc, true means connected, false disconnected."""
         return not self.device.radio_out_of_reach
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.CONNECTIVITY
 
@@ -316,18 +322,19 @@ class VRBoxEntity(MultimaticEntity, BinarySensorEntity):
         self._gw_coo = gw_coo
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """Return device specific attributes."""
         if self._detail_coo.data:
             detail = self._detail_coo.data
-            return {
-                "identifiers": {(MULTIMATIC, detail.serial_number)},
-                "connections": {(CONNECTION_NETWORK_MAC, detail.ethernet_mac)},
-                "name": self._gw_coo.data,
-                "manufacturer": "Vaillant",
-                "model": self._gw_coo.data,
-                "sw_version": detail.firmware_version,
-            }
+            return DeviceInfo(
+                identifiers={(MULTIMATIC, detail.serial_number)},
+                connections={(CONNECTION_NETWORK_MAC, detail.ethernet_mac)},
+                name=self._gw_coo.data,
+                manufacturer="Vaillant",
+                model=self._gw_coo.data,
+                sw_version=detail.firmware_version,
+            )
+        return None
 
 
 class BoxUpdate(VRBoxEntity):
@@ -348,7 +355,7 @@ class BoxUpdate(VRBoxEntity):
         )
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         return not self.coordinator.data.is_up_to_date
 
@@ -363,7 +370,7 @@ class BoxUpdate(VRBoxEntity):
         return EntityCategory.DIAGNOSTIC
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.UPDATE
 
@@ -381,17 +388,17 @@ class BoxOnline(VRBoxEntity):
         super().__init__(coord, detail_coo, gw_coo, "multimatic_system_online")
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         return self.coordinator.data.is_online
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the entity."""
         return "Multimatic system Online"
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.CONNECTIVITY
 
@@ -416,12 +423,12 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
         self._boiler_id = slugify(self._name)
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         return self.boiler_status and self.boiler_status.is_error
 
     @property
-    def state_attributes(self):
+    def state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
         if self.boiler_status:
             return {
@@ -429,19 +436,20 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
                 "title": self.boiler_status.title,
                 "timestamp": self.boiler_status.timestamp,
             }
+        return None
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo:
         """Return device specific attributes."""
-        return {
-            "identifiers": {(MULTIMATIC, self._boiler_id)},
-            "name": self._name,
-            "manufacturer": "Vaillant",
-            "model": self._name,
-        }
+        return DeviceInfo(
+            identifiers={(MULTIMATIC, self._boiler_id)},
+            name=self._name,
+            manufacturer="Vaillant",
+            model=self._name,
+        )
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return the state attributes."""
         if self.available:
             return {"device_id": self._boiler_id, "error": self.boiler_status.is_error}
@@ -453,7 +461,7 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
         return super().available and self.boiler_status
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the entity."""
         return self._name
 
@@ -463,7 +471,7 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
         return self.coordinator.data.boiler_status if self.coordinator.data else None
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.PROBLEM
 
@@ -485,14 +493,14 @@ class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
         )
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         if self.coordinator.data.errors:
             return len(self.coordinator.data.errors) > 0
         return False
 
     @property
-    def state_attributes(self):
+    def state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
         state_attributes = {}
         if self.coordinator.data.errors:
@@ -511,12 +519,12 @@ class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
         return state_attributes
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.PROBLEM
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the entity."""
         return "Multimatic Errors"
 
@@ -534,12 +542,12 @@ class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
         super().__init__(coordinator, DOMAIN, "multimatic_holiday")
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         return self.coordinator.data is not None and self.coordinator.data.is_applied
 
     @property
-    def state_attributes(self):
+    def state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
         if self.is_on:
             return {
@@ -547,9 +555,10 @@ class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
                 "end_date": self.coordinator.data.end_date.isoformat(),
                 "temperature": self.coordinator.data.target,
             }
+        return None
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the entity."""
         return "Multimatic holiday"
 
@@ -564,7 +573,7 @@ class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
         return EntityCategory.DIAGNOSTIC
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.OCCUPANCY
 
@@ -577,12 +586,12 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
         super().__init__(coordinator, DOMAIN, "multimatic_quick_mode")
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         return self.coordinator.data is not None
 
     @property
-    def state_attributes(self):
+    def state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes."""
         attrs = {}
         if self.is_on:
@@ -592,7 +601,7 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
         return attrs
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the entity."""
         return "Multimatic quick mode"
 
@@ -607,6 +616,6 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
         return EntityCategory.DIAGNOSTIC
 
     @property
-    def device_class(self) -> BinarySensorDeviceClass | str | None:
+    def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.RUNNING

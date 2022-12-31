@@ -9,7 +9,10 @@ from typing import Any
 from pymultimatic.model import OperatingModes, QuickModes
 
 from homeassistant.components.fan import DOMAIN, FanEntity, FanEntityFeature
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ATTR_LEVEL, VENTILATION
 from .coordinator import MultimaticCoordinator
@@ -24,7 +27,9 @@ from .utils import get_coordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up the multimatic fan platform."""
 
     coordinator = get_coordinator(hass, VENTILATION, entry.unique_id)
@@ -34,7 +39,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
         async_add_entities([MultimaticFan(coordinator)])
 
         _LOGGER.debug("Adding fan services")
-        platform = entity_platform.current_platform.get()
+        platform = entity_platform.async_get_current_platform()
         platform.async_register_entity_service(
             SERVICE_SET_VENTILATION_DAY_LEVEL,
             SERVICES[SERVICE_SET_VENTILATION_DAY_LEVEL]["schema"],
@@ -85,7 +90,7 @@ class MultimaticFan(MultimaticEntity, FanEntity):
         self,
         percentage: int | None = None,
         preset_mode: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Turn on the fan."""
         if preset_mode:
@@ -94,19 +99,19 @@ class MultimaticFan(MultimaticEntity, FanEntity):
             mode = OperatingModes.AUTO
         return await self.coordinator.api.set_fan_operating_mode(self, mode)
 
-    async def async_turn_off(self, **kwargs: Any):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn on the fan."""
         return await self.coordinator.api.set_fan_operating_mode(
             self, OperatingModes.NIGHT
         )
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the entity is on."""
         return self.active_mode.current != OperatingModes.NIGHT
 
     @property
-    def supported_features(self) -> int:
+    def supported_features(self) -> FanEntityFeature:
         """Flag supported features."""
         return FanEntityFeature.PRESET_MODE
 
@@ -126,7 +131,7 @@ class MultimaticFan(MultimaticEntity, FanEntity):
         return self._preset_modes
 
     @property
-    def available(self):
+    def available(self) -> bool:
         """Return True if entity is available."""
         return super().available and self.component
 
