@@ -8,7 +8,7 @@ import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 import homeassistant.helpers.config_validation as cv
 
 from .const import CONF_SERIAL_NUMBER, DEFAULT_SCAN_INTERVAL, DOMAIN
@@ -39,7 +39,7 @@ async def validate_authentication(hass, username, password):
     """Ensure provided credentials are working."""
     try:
         if not await SystemManager(
-            username, password, async_get_clientsession(hass)
+            username, password, async_create_clientsession(hass)
         ).login(True):
             raise InvalidAuth
     except ApiError as err:
