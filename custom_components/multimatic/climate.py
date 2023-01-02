@@ -71,9 +71,9 @@ async def async_setup_entry(
 ) -> None:
     """Set up the multimatic climate platform."""
     climates: list[MultimaticClimate] = []
-    zones_coo = get_coordinator(hass, ZONES, entry.unique_id)
-    rooms_coo = get_coordinator(hass, ROOMS, entry.unique_id)
-    ventilation_coo = get_coordinator(hass, VENTILATION, entry.unique_id)
+    zones_coo = get_coordinator(hass, ZONES, entry.entry_id)
+    rooms_coo = get_coordinator(hass, ROOMS, entry.entry_id)
+    ventilation_coo = get_coordinator(hass, VENTILATION, entry.entry_id)
 
     if zones_coo.data:
         for zone in zones_coo.data:

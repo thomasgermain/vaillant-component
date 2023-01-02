@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    CONF_SERIAL_NUMBER,
     COORDINATOR_LIST,
     COORDINATORS,
     DEFAULT_SCAN_INTERVAL,
@@ -33,8 +34,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api: MultimaticApi = MultimaticApi(hass, entry)
 
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN].setdefault(entry.unique_id, {})
-    hass.data[DOMAIN][entry.unique_id].setdefault(COORDINATORS, {})
+    hass.data[DOMAIN].setdefault(entry.entry_id, {})
+    hass.data[DOMAIN][entry.entry_id].setdefault(COORDINATORS, {})
+
+    _LOGGER.debug(
+        "Setting up multimatic for serial  %s, id is %s",
+        entry.data.get(CONF_SERIAL_NUMBER),
+        entry.entry_id,
+    )
 
     for coord in COORDINATOR_LIST.items():
         update_interval = (
@@ -51,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             method="get_" + coord[0],
             update_interval=update_interval,
         )
-        hass.data[DOMAIN][entry.unique_id][COORDINATORS][coord[0]] = m_coord
+        hass.data[DOMAIN][entry.entry_id][COORDINATORS][coord[0]] = m_coord
         _LOGGER.debug("Adding %s coordinator", m_coord.name)
         await m_coord.async_refresh()
 
@@ -72,11 +79,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_setup_service(api: MultimaticApi, hass):
     """Set up services."""
-    if not hass.data.get(SERVICES_HANDLER):
+    if not hass.data[DOMAIN].get(SERVICES_HANDLER):
         service_handler = MultimaticServiceHandler(api, hass)
-        for service_key in SERVICES:
-            schema = SERVICES[service_key]["schema"]
-            if not SERVICES[service_key].get("entity", False):
+        for service_key, data in SERVICES.items():
+            schema = data["schema"]
+            if not data.get("entity", False):
                 hass.services.async_register(
                     DOMAIN, service_key, service_handler.service_call, schema=schema
                 )
@@ -102,7 +109,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     )
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.unique_id)
+        hass.data[DOMAIN].pop(entry.entry_id)
 
     _LOGGER.debug("Remaining data for multimatic %s", hass.data[DOMAIN])
 
