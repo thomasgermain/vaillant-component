@@ -107,7 +107,7 @@ class ReportSensor(MultimaticEntity, SensorEntity):
 
     def __init__(self, coordinator: MultimaticCoordinator, report: Report) -> None:
         """Init entity."""
-        MultimaticEntity.__init__(self, coordinator, DOMAIN, report.id)
+        MultimaticEntity.__init__(self, coordinator, DOMAIN, f"{report.device_id}_{report.id}")
         self._report_id = report.id
         self._unit = report.unit
         self._name = report.name
@@ -122,7 +122,7 @@ class ReportSensor(MultimaticEntity, SensorEntity):
             (
                 report
                 for report in self.coordinator.data
-                if report.id == self._report_id
+                if report.device_id == self._device_id and report.id == self._report_id
             ),
             None,
         )
