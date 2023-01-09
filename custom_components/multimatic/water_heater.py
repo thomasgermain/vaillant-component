@@ -43,7 +43,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up water_heater platform."""
     entities = []
-    coordinator = get_coordinator(hass, DHW, entry.unique_id)
+    coordinator = get_coordinator(hass, DHW, entry.entry_id)
 
     if coordinator.data and coordinator.data.hotwater:
         entities.append(MultimaticWaterHeater(coordinator))

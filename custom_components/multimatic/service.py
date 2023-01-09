@@ -128,42 +128,36 @@ class MultimaticServiceHandler:
         self.api = hub
         self._hass = hass
 
-    async def service_call(self, call):
-        """Handle service calls."""
-        service = call.service
-        method = getattr(self, service)
-        await method(data=call.data)
-
-    async def remove_quick_mode(self, data):
+    async def remove_quick_mode(self, call):
         """Remove quick mode. It has impact on all components."""
         await self.api.remove_quick_mode()
 
-    async def set_holiday_mode(self, data):
+    async def set_holiday_mode(self, call):
         """Set holiday mode."""
-        start_str = data.get(ATTR_START_DATE, None)
-        end_str = data.get(ATTR_END_DATE, None)
-        temp = data.get(ATTR_TEMPERATURE)
+        start_str = call.data.get(ATTR_START_DATE, None)
+        end_str = call.data.get(ATTR_END_DATE, None)
+        temp = call.data.get(ATTR_TEMPERATURE)
         start = parse_date(start_str.split("T")[0])
         end = parse_date(end_str.split("T")[0])
         if end is None or start is None:
             raise ValueError(f"dates are incorrect {start_str} {end_str}")
         await self.api.set_holiday_mode(start, end, temp)
 
-    async def remove_holiday_mode(self, data):
+    async def remove_holiday_mode(self, call):
         """Remove holiday mode."""
         await self.api.remove_holiday_mode()
 
-    async def set_quick_mode(self, data):
+    async def set_quick_mode(self, call):
         """Set quick mode, it may impact the whole system."""
-        quick_mode = data.get(ATTR_QUICK_MODE, None)
-        duration = data.get(ATTR_DURATION, None)
+        quick_mode = call.data.get(ATTR_QUICK_MODE, None)
+        duration = call.data.get(ATTR_DURATION, None)
         await self.api.set_quick_mode(quick_mode, duration)
 
-    async def request_hvac_update(self, data):
+    async def request_hvac_update(self, call):
         """Ask multimatic API to get data from the installation."""
         await self.api.request_hvac_update()
 
-    async def set_datetime(self, data):
+    async def set_datetime(self, call):
         """Set date time."""
-        date_t: datetime = data.get(ATTR_DATE_TIME, datetime.datetime.now())
+        date_t: datetime = call.data.get(ATTR_DATE_TIME, datetime.datetime.now())
         await self.api.set_datetime(date_t)

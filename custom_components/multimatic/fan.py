@@ -32,7 +32,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the multimatic fan platform."""
 
-    coordinator = get_coordinator(hass, VENTILATION, entry.unique_id)
+    coordinator = get_coordinator(hass, VENTILATION, entry.entry_id)
 
     if coordinator.data:
         _LOGGER.debug("Adding fan entity")

@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    CONF_SERIAL_NUMBER,
     COORDINATOR_LIST,
     COORDINATORS,
     DEFAULT_SCAN_INTERVAL,
@@ -33,8 +34,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api: MultimaticApi = MultimaticApi(hass, entry)
 
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN].setdefault(entry.unique_id, {})
-    hass.data[DOMAIN][entry.unique_id].setdefault(COORDINATORS, {})
+    hass.data[DOMAIN].setdefault(entry.entry_id, {})
+    hass.data[DOMAIN][entry.entry_id].setdefault(COORDINATORS, {})
+
+    _LOGGER.debug(
+        "Setting up multimatic for serial  %s, id is %s",
+        entry.data.get(CONF_SERIAL_NUMBER),
+        entry.entry_id,
+    )
 
     for coord in COORDINATOR_LIST.items():
         update_interval = (
@@ -51,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             method="get_" + coord[0],
             update_interval=update_interval,
         )
-        hass.data[DOMAIN][entry.unique_id][COORDINATORS][coord[0]] = m_coord
+        hass.data[DOMAIN][entry.entry_id][COORDINATORS][coord[0]] = m_coord
         _LOGGER.debug("Adding %s coordinator", m_coord.name)
         await m_coord.async_refresh()
 
@@ -65,30 +72,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, logout)
 
-    await async_setup_service(api, hass)
+    await async_setup_service(hass, api, entry)
 
     return True
 
 
-async def async_setup_service(api: MultimaticApi, hass):
+async def async_setup_service(hass, api: MultimaticApi, entry: ConfigEntry):
     """Set up services."""
-    if not hass.data.get(SERVICES_HANDLER):
+    serial = api.serial if api.fixed_serial else None
+
+    if not hass.data[DOMAIN][entry.entry_id].get(SERVICES_HANDLER):
         service_handler = MultimaticServiceHandler(api, hass)
-        for service_key in SERVICES:
-            schema = SERVICES[service_key]["schema"]
-            if not SERVICES[service_key].get("entity", False):
+        for service_key, data in SERVICES.items():
+            schema = data["schema"]
+            if not data.get("entity", False):
+                key = service_key
+                if serial:
+                    key += f"_{serial}"
                 hass.services.async_register(
-                    DOMAIN, service_key, service_handler.service_call, schema=schema
+                    DOMAIN, key, getattr(service_handler, service_key), schema=schema
                 )
-        hass.data[DOMAIN][SERVICES_HANDLER] = service_handler
+        hass.data[DOMAIN][entry.entry_id][SERVICES_HANDLER] = service_handler
 
 
-async def async_unload_services(hass):
-    """Remove service when integration is removed."""
-    service_handler = hass.data[DOMAIN].get(SERVICES_HANDLER, None)
+async def async_unload_services(hass, entry: ConfigEntry):
+    """Remove services when integration is removed."""
+    service_handler = hass.data[DOMAIN][entry.entry_id].get(SERVICES_HANDLER, None)
     if service_handler:
-        for service_name in SERVICES:
-            hass.services.async_remove(DOMAIN, service_name)
+        serial = (
+            service_handler.api.serial if service_handler.api.fixed_serial else None
+        )
+        for service_key in SERVICES:
+            key = service_key
+            if serial:
+                key += f"_{serial}"
+            hass.services.async_remove(DOMAIN, key)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -102,15 +120,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
     )
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.unique_id)
+        await async_unload_services(hass, entry)
+        hass.data[DOMAIN].pop(entry.entry_id)
 
     _LOGGER.debug("Remaining data for multimatic %s", hass.data[DOMAIN])
-
-    if (
-        len(hass.data[DOMAIN]) == 1
-        and hass.data[DOMAIN].get(SERVICES_HANDLER, None) is not None
-    ):
-        await async_unload_services(hass)
-        hass.data[DOMAIN].pop(SERVICES_HANDLER)
 
     return unload_ok

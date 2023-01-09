@@ -39,9 +39,9 @@ async def async_setup_entry(
 ) -> None:
     """Set up the multimatic sensors."""
     sensors: list[MultimaticEntity] = []
-    outdoor_temp_coo = get_coordinator(hass, OUTDOOR_TEMP, entry.unique_id)
-    reports_coo = get_coordinator(hass, REPORTS, entry.unique_id)
-    emf_reports_coo = get_coordinator(hass, EMF_REPORTS, entry.unique_id)
+    outdoor_temp_coo = get_coordinator(hass, OUTDOOR_TEMP, entry.entry_id)
+    reports_coo = get_coordinator(hass, REPORTS, entry.entry_id)
+    emf_reports_coo = get_coordinator(hass, EMF_REPORTS, entry.entry_id)
 
     if outdoor_temp_coo.data:
         sensors.append(OutdoorTemperatureSensor(outdoor_temp_coo))
