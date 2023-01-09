@@ -106,7 +106,8 @@ async def async_unload_services(hass, entry: ConfigEntry):
             key = service_key
             if serial:
                 key += f"_{serial}"
-            hass.services.async_remove(DOMAIN, key)
+            if hass.services.has_service(DOMAIN, key):
+                hass.services.async_remove(DOMAIN, key)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
