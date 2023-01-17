@@ -1,7 +1,7 @@
 """Config flow for multimatic integration."""
 import logging
 
-from pymultimatic.api import ApiError
+from pymultimatic.api import ApiError, defaults
 from pymultimatic.systemmanager import SystemManager
 import voluptuous as vol
 
@@ -13,7 +13,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import CONF_SERIAL_NUMBER, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import CONF_SERIAL_NUMBER, DEFAULT_SCAN_INTERVAL, DOMAIN, CONF_APPLICATION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
         vol.Optional(CONF_SERIAL_NUMBER): str,
+        vol.Required(CONF_APPLICATION, default="MULTIMATIC"): vol.In(["MULTIMATIC", "SENSO"]),
     }
 )
 
@@ -32,16 +33,20 @@ async def validate_input(hass: core.HomeAssistant, data):
     Data has the keys from DATA_SCHEMA with values provided by the user.
     """
 
-    await validate_authentication(hass, data[CONF_USERNAME], data[CONF_PASSWORD])
+    await validate_authentication(hass, data[CONF_USERNAME], data[CONF_PASSWORD], data[CONF_APPLICATION])
 
     return {"title": "Multimatic"}
 
 
-async def validate_authentication(hass, username, password):
+async def validate_authentication(hass, username, password, application):
     """Ensure provided credentials are working."""
     try:
+        systemApplication = defaults.SENSO if application == "SENSO" else defaults.MULTIMATIC
         if not await SystemManager(
-            username, password, async_create_clientsession(hass)
+            user=username,
+            password=password,
+            session=async_create_clientsession(hass),
+            application=systemApplication,
         ).login(True):
             raise InvalidAuth
     except ApiError as err:

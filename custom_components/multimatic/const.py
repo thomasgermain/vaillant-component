@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 DOMAIN = "multimatic"
+SENSO = "SENSO"
 ENTITIES = "entities"
 
 # list of platforms into entity are created
@@ -24,7 +25,8 @@ PRESET_COOLING_FOR_X_DAYS = "cooling_for_x_days"
 # default values for configuration
 DEFAULT_EMPTY = ""
 DEFAULT_SCAN_INTERVAL = 2
-DEFAULT_QUICK_VETO_DURATION = 3 * 60
+DEFAULT_QUICK_VETO_DURATION_HOURS = 3
+DEFAULT_QUICK_VETO_DURATION = DEFAULT_QUICK_VETO_DURATION_HOURS * 60
 DEFAULT_SMART_PHONE_ID = "homeassistant"
 
 # max and min values for quick veto
@@ -34,6 +36,7 @@ MAX_QUICK_VETO_DURATION = 24 * 60
 # configuration keys
 CONF_QUICK_VETO_DURATION = "quick_veto_duration"
 CONF_SERIAL_NUMBER = "serial_number"
+CONF_APPLICATION = "application"
 
 # constants for states_attributes
 ATTR_QUICK_MODE = "quick_mode"

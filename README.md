@@ -7,22 +7,19 @@
 
 Ideas are welcome ! Don't hesitate to create issue to suggest something, it will be really appreciated.
 
-**This integration is NOT compatible with sensoAPP, only with multiMATIC app.**
-
-**This integration is NOT likely to be compatible with VR921 (even if you use multiMATIC app). You may still have
-some entities, but not all.**
+**This integration is also compatible with sensoAPP, but only tested with VR921.**
 
 ## Installations
 - Through HACS [custom repositories](https://hacs.xyz/docs/faq/custom_repositories/) !
 - Otherwise, download the zip from the latest release and copy `multimatic` folder and put it inside your `custom_components` folder.
 
 You can configure it through the UI using integration.
-You have to provide your username and password (same as multimatic app), if you have multiple serial numbers, you can choose for which number serial number you want the integration.
+You have to provide your username and password (same as multimatic or senso app), if you have multiple serial numbers, you can choose for which number serial number you want the integration.
 You can create multiple instance of the integration with different serial number (**This is still a beta feature**).
 
 **It is strongly recommended using a dedicated user for HA**, for 2 reasons:
 - As usual for security reason, if your HA got compromised somehow, you know which user to block
-- I cannot confirm it, but it seems multimatic API only accept the same user to be connected at the same time
+- I cannot confirm it, but it seems multimatic and senso API only accept the same user to be connected at the same time
 
 ## Changelog
 See [releases details](https://github.com/thomasgermain/vaillant-component/releases)

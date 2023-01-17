@@ -5,10 +5,10 @@
         "data": {
           "password": "Password",
           "username": "Username",
-          "Application": "Application",
+          "application": "Application",
           "serial_number": "Serial number"
         },
-        "title": "Connection information (same as multiMATIC application)"
+        "title": "Connection information (same as multiMATIC or Senso application)"
       }
     },
     "error": {

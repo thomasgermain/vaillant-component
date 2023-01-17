@@ -1,7 +1,7 @@
 """Interfaces with Multimatic climate."""
 from __future__ import annotations
 
-import abc
+from abc import ABC, abstractmethod
 from collections.abc import Mapping
 import logging
 from typing import Any
@@ -49,8 +49,10 @@ from .const import (
     PRESET_QUICK_VETO,
     PRESET_SYSTEM_OFF,
     ROOMS,
+    SENSO,
     VENTILATION,
     ZONES,
+    CONF_APPLICATION,
 )
 from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
@@ -74,11 +76,12 @@ async def async_setup_entry(
     zones_coo = get_coordinator(hass, ZONES, entry.entry_id)
     rooms_coo = get_coordinator(hass, ROOMS, entry.entry_id)
     ventilation_coo = get_coordinator(hass, VENTILATION, entry.entry_id)
+    system_application = SENSO if entry.data[CONF_APPLICATION] == SENSO else MULTIMATIC
 
     if zones_coo.data:
         for zone in zones_coo.data:
             if not zone.rbr and zone.enabled:
-                climates.append(ZoneClimate(zones_coo, zone, ventilation_coo.data))
+                climates.append(build_zone_climate(zones_coo, zone, ventilation_coo.data, system_application))
 
     if rooms_coo.data:
         rbr_zone = next((zone for zone in zones_coo.data if zone.rbr), None)
@@ -103,7 +106,7 @@ async def async_setup_entry(
         )
 
 
-class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
+class MultimaticClimate(MultimaticEntity, ClimateEntity, ABC):
     """Base class for climate."""
 
     def __init__(
@@ -131,7 +134,7 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, abc.ABC):
         return self.coordinator.api.get_active_mode(self.component)
 
     @property
-    @abc.abstractmethod
+    @abstractmethod
     def component(self) -> Component:
         """Return the room or the zone."""
 
@@ -362,52 +365,22 @@ class RoomClimate(MultimaticClimate):
         return int(humidity) if humidity is not None else None
 
 
-class ZoneClimate(MultimaticClimate):
-    """Climate for a zone."""
+def build_zone_climate(coordinator: MultimaticCoordinator, zone: Zone, ventilation, application) -> AbstractZoneClimate:
+    if application == MULTIMATIC:
+        return ZoneClimate(coordinator, zone, ventilation)
+    return ZoneClimateSenso(coordinator, zone, ventilation)
 
-    _MULTIMATIC_TO_HA: dict[Mode, list] = {
-        OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
-        OperatingModes.DAY: [None, PRESET_DAY],
-        OperatingModes.NIGHT: [None, PRESET_SLEEP],
-        OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
-        OperatingModes.ON: [None, PRESET_COOLING_ON],
-        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
-        QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
-        QuickModes.PARTY: [None, PRESET_PARTY],
-        QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],
-        QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
-        QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
-        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
-        QuickModes.COOLING_FOR_X_DAYS: [None, PRESET_COOLING_FOR_X_DAYS],
-    }
 
-    _HA_MODE_TO_MULTIMATIC = {
-        HVACMode.AUTO: OperatingModes.AUTO,
-        HVACMode.OFF: OperatingModes.OFF,
-        HVACMode.FAN_ONLY: QuickModes.VENTILATION_BOOST,
-        HVACMode.COOL: QuickModes.COOLING_FOR_X_DAYS,
-    }
-
-    _HA_PRESET_TO_MULTIMATIC = {
-        PRESET_COMFORT: OperatingModes.AUTO,
-        PRESET_DAY: OperatingModes.DAY,
-        PRESET_SLEEP: OperatingModes.NIGHT,
-        PRESET_COOLING_ON: OperatingModes.ON,
-        PRESET_HOME: QuickModes.ONE_DAY_AT_HOME,
-        PRESET_PARTY: QuickModes.PARTY,
-        PRESET_AWAY: QuickModes.ONE_DAY_AWAY,
-        PRESET_SYSTEM_OFF: QuickModes.SYSTEM_OFF,
-        PRESET_COOLING_FOR_X_DAYS: QuickModes.COOLING_FOR_X_DAYS,
-    }
-
+class AbstractZoneClimate(MultimaticClimate, ABC):
+    """Abstract class for a climate for a zone."""
     def __init__(
         self, coordinator: MultimaticCoordinator, zone: Zone, ventilation
     ) -> None:
         """Initialize entity."""
         super().__init__(coordinator, zone.id)
 
-        self._supported_hvac = list(ZoneClimate._HA_MODE_TO_MULTIMATIC.keys())
-        self._supported_presets = list(ZoneClimate._HA_PRESET_TO_MULTIMATIC.keys())
+        self._supported_hvac = list(self._ha_mode().keys())
+        self._supported_presets = list(self._ha_preset().keys())
 
         if not zone.cooling:
             self._supported_presets.remove(PRESET_COOLING_ON)
@@ -418,6 +391,18 @@ class ZoneClimate(MultimaticClimate):
             self._supported_hvac.remove(HVACMode.FAN_ONLY)
 
         self._zone_id = zone.id
+
+    @abstractmethod
+    def _ha_mode(self):
+        pass
+
+    @abstractmethod
+    def _multimatic_mode(self):
+        pass
+
+    @abstractmethod
+    def _ha_preset(self):
+        pass
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
@@ -438,7 +423,7 @@ class ZoneClimate(MultimaticClimate):
     def hvac_mode(self) -> HVACMode:
         """Get the hvac mode based on multimatic mode."""
         current_mode = self.active_mode.current
-        hvac_mode = ZoneClimate._MULTIMATIC_TO_HA[current_mode][0]
+        hvac_mode = self._multimatic_mode()[current_mode][0]
         if not hvac_mode:
             if (
                 current_mode
@@ -497,7 +482,7 @@ class ZoneClimate(MultimaticClimate):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
-        mode = ZoneClimate._HA_MODE_TO_MULTIMATIC[hvac_mode]
+        mode = self._ha_mode()[hvac_mode]
         await self.coordinator.api.set_zone_operating_mode(self, mode)
 
     @property
@@ -511,7 +496,7 @@ class ZoneClimate(MultimaticClimate):
     @property
     def preset_mode(self) -> str | None:
         """Return the current preset mode, e.g., home, away, temp."""
-        return ZoneClimate._MULTIMATIC_TO_HA[self.active_mode.current][1]
+        return self._multimatic_mode()[self.active_mode.current][1]
 
     @property
     def preset_modes(self) -> list[str] | None:
@@ -522,5 +507,99 @@ class ZoneClimate(MultimaticClimate):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
-        mode = ZoneClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
+        mode = self._ha_preset()[preset_mode]
         await self.coordinator.api.set_zone_operating_mode(self, mode)
+
+class ZoneClimate(AbstractZoneClimate):
+    """Climate for a MULTIMATIC zone."""
+
+    _MULTIMATIC_TO_HA: dict[Mode, list] = {
+        OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
+        OperatingModes.DAY: [None, PRESET_DAY],
+        OperatingModes.NIGHT: [None, PRESET_SLEEP],
+        OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
+        OperatingModes.ON: [None, PRESET_COOLING_ON],
+        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
+        QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
+        QuickModes.PARTY: [None, PRESET_PARTY],
+        QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],
+        QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
+        QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
+        QuickModes.COOLING_FOR_X_DAYS: [None, PRESET_COOLING_FOR_X_DAYS],
+    }
+
+    _HA_MODE_TO_MULTIMATIC = {
+        HVACMode.AUTO: OperatingModes.AUTO,
+        HVACMode.OFF: OperatingModes.OFF,
+        HVACMode.FAN_ONLY: QuickModes.VENTILATION_BOOST,
+        HVACMode.COOL: QuickModes.COOLING_FOR_X_DAYS,
+    }
+
+    _HA_PRESET_TO_MULTIMATIC = {
+        PRESET_COMFORT: OperatingModes.AUTO,
+        PRESET_DAY: OperatingModes.DAY,
+        PRESET_SLEEP: OperatingModes.NIGHT,
+        PRESET_COOLING_ON: OperatingModes.ON,
+        PRESET_HOME: QuickModes.ONE_DAY_AT_HOME,
+        PRESET_PARTY: QuickModes.PARTY,
+        PRESET_AWAY: QuickModes.ONE_DAY_AWAY,
+        PRESET_SYSTEM_OFF: QuickModes.SYSTEM_OFF,
+        PRESET_COOLING_FOR_X_DAYS: QuickModes.COOLING_FOR_X_DAYS,
+    }
+
+    def _ha_mode(self):
+        return ZoneClimate._HA_MODE_TO_MULTIMATIC
+
+    def _multimatic_mode(self):
+        return ZoneClimate._MULTIMATIC_TO_HA
+
+    def _ha_preset(self):
+        return ZoneClimate._HA_PRESET_TO_MULTIMATIC
+
+
+class ZoneClimateSenso(AbstractZoneClimate):
+    """Climate for a SENSO zone."""
+
+    _SENSO_TO_HA: dict[Mode, list] = {
+        OperatingModes.TIME_CONTROLLED: [HVACMode.AUTO, PRESET_COMFORT],
+        OperatingModes.DAY: [None, PRESET_DAY],
+        OperatingModes.NIGHT: [None, PRESET_SLEEP],
+        OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
+        OperatingModes.MANUAL: [None, PRESET_COOLING_ON],
+        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
+        QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
+        QuickModes.PARTY: [None, PRESET_PARTY],
+        QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],
+        QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
+        QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
+        QuickModes.COOLING_FOR_X_DAYS: [None, PRESET_COOLING_FOR_X_DAYS],
+    }
+    _HA_MODE_TO_SENSO = {
+        HVACMode.AUTO: OperatingModes.TIME_CONTROLLED,
+        HVACMode.OFF: OperatingModes.OFF,
+        HVACMode.FAN_ONLY: QuickModes.VENTILATION_BOOST,
+        HVACMode.COOL: QuickModes.COOLING_FOR_X_DAYS,
+    }
+
+    _HA_PRESET_TO_SENSO = {
+        PRESET_COMFORT: OperatingModes.TIME_CONTROLLED,
+        PRESET_DAY: OperatingModes.DAY,
+        PRESET_SLEEP: OperatingModes.NIGHT,
+        PRESET_COOLING_ON: OperatingModes.MANUAL,
+        PRESET_HOME: QuickModes.ONE_DAY_AT_HOME,
+        PRESET_PARTY: QuickModes.PARTY,
+        PRESET_AWAY: QuickModes.ONE_DAY_AWAY,
+        PRESET_SYSTEM_OFF: QuickModes.SYSTEM_OFF,
+        PRESET_COOLING_FOR_X_DAYS: QuickModes.COOLING_FOR_X_DAYS,
+    }
+
+    def _ha_mode(self):
+        return ZoneClimateSenso._HA_MODE_TO_SENSO
+
+    def _multimatic_mode(self):
+        return ZoneClimateSenso._SENSO_TO_HA
+
+    def _ha_preset(self):
+        return ZoneClimateSenso._HA_PRESET_TO_SENSO
