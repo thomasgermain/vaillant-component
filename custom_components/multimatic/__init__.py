@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
+from pymultimatic.api import defaults
 
 from .const import (
     CONF_SERIAL_NUMBER,
@@ -15,7 +16,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     PLATFORMS,
-    SERVICES_HANDLER,
+    SERVICES_HANDLER, CONF_APPLICATION,
 )
 from .coordinator import MultimaticApi, MultimaticCoordinator
 from .service import SERVICES, MultimaticServiceHandler
@@ -127,3 +128,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Remaining data for multimatic %s", hass.data[DOMAIN])
 
     return unload_ok
+
+
+async def async_migrate_entry(hass, config_entry: ConfigEntry):
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+    if config_entry.version == 1:
+        new = {**config_entry.data, CONF_APPLICATION: defaults.MULTIMATIC}
+
+        config_entry.version = 2
+        hass.config_entries.async_update_entry(config_entry, data=new)
+
+    _LOGGER.debug("Migration to version %s successful", config_entry.version)
+
+    return True
