@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import timedelta
 import logging
 
-from pymultimatic.api import ApiError
+from pymultimatic.api import ApiError, defaults
 from pymultimatic.model import (
     Circulation,
     Component,
@@ -30,11 +30,13 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
+    CONF_APPLICATION,
     CONF_SERIAL_NUMBER,
     DEFAULT_QUICK_VETO_DURATION,
     HOLIDAY_MODE,
     QUICK_MODE,
     REFRESH_EVENT,
+    SENSO, DEFAULT_QUICK_VETO_DURATION_HOURS,
 )
 from .utils import (
     holiday_mode_from_json,
@@ -57,12 +59,14 @@ class MultimaticApi:
 
         username = entry.data[CONF_USERNAME]
         password = entry.data[CONF_PASSWORD]
+        systemApplication = defaults.SENSO if entry.data[CONF_APPLICATION] == SENSO else defaults.MULTIMATIC
 
         self._manager = pymultimatic.systemmanager.SystemManager(
             user=username,
             password=password,
             session=async_create_clientsession(hass),
             serial=self.serial,
+            application=systemApplication,
         )
 
         self._quick_mode: QuickMode | None = None
@@ -219,7 +223,7 @@ class MultimaticApi:
             if current_mode == OperatingModes.QUICK_VETO:
                 await self._manager.remove_room_quick_veto(room.id)
 
-            qveto = QuickVeto(DEFAULT_QUICK_VETO_DURATION, target_temp)
+            qveto = QuickVeto(self._default_quick_veto_duration(), target_temp)
             await self._manager.set_room_quick_veto(room.id, qveto)
             room.quick_veto = qveto
 
@@ -245,7 +249,8 @@ class MultimaticApi:
         if current_mode == OperatingModes.QUICK_VETO:
             await self._manager.remove_zone_quick_veto(zone.id)
 
-        veto = QuickVeto(None, target_temp)
+        # Senso needs a duration, applying the same duration as the Multimatic default.
+        veto = QuickVeto(self._default_quick_veto_duration(), target_temp)
         await self._manager.set_zone_quick_veto(zone.id, veto)
         zone.quick_veto = veto
 
@@ -345,6 +350,9 @@ class MultimaticApi:
         comp = entity.component
 
         q_duration = duration if duration else DEFAULT_QUICK_VETO_DURATION
+        # For senso, the duration is in hours
+        if self._manager._application == defaults.SENSO:
+            q_duration = round(q_duration / 60 / 0.5) * 0.5
         qveto = QuickVeto(q_duration, temperature)
 
         if isinstance(comp, Zone):
@@ -460,6 +468,9 @@ class MultimaticApi:
         if touch_system:
             await self._refresh_entities()
         entity.async_schedule_update_ha_state(True)
+
+    def _default_quick_veto_duration(self):
+        return DEFAULT_QUICK_VETO_DURATION_HOURS if self._manager._application == defaults.SENSO else DEFAULT_QUICK_VETO_DURATION
 
 
 class MultimaticCoordinator(DataUpdateCoordinator):
