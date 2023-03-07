@@ -7,7 +7,7 @@
 
 Ideas are welcome ! Don't hesitate to create issue to suggest something, it will be really appreciated.
 
-**This integration is also compatible with sensoAPP, but only tested with VR921.**
+**This integration is also compatible with sensoAPP and has been tested with the vr920 and vr921 devices.**
 
 ## Installations
 - Through HACS [custom repositories](https://hacs.xyz/docs/faq/custom_repositories/) !
