@@ -6,6 +6,7 @@ from datetime import timedelta
 
 DOMAIN = "multimatic"
 SENSO = "SENSO"
+MULTIMATIC = "MULTIMATIC"
 ENTITIES = "entities"
 
 # list of platforms into entity are created
@@ -79,3 +80,6 @@ COORDINATOR_LIST: dict[str, timedelta | None] = {
     GATEWAY: timedelta(days=1),
     EMF_REPORTS: None,
 }
+
+FORCE_RELOGIN_TIMEDELTA = timedelta(hours=1)
+RELOGIN_TASK_CLEAN = "relogin_task_clean"

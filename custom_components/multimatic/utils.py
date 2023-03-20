@@ -5,12 +5,14 @@ from datetime import datetime
 
 from pymultimatic.model import HolidayMode, QuickMode, QuickModes
 
+from homeassistant.core import HomeAssistant
+
 from .const import COORDINATORS, DOMAIN as MULTIMATIC
 
 _DATE_FORMAT = "%Y-%m-%d"
 
 
-def get_coordinator(hass, key: str, entry_id: str | None):
+def get_coordinator(hass: HomeAssistant, key: str, entry_id: str | None):
     """Get coordinator from hass data."""
     return hass.data[MULTIMATIC][entry_id][COORDINATORS][key]
 

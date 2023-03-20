@@ -13,9 +13,10 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
@@ -315,7 +316,7 @@ class VRBoxEntity(MultimaticEntity, BinarySensorEntity):
         detail_coo: MultimaticCoordinator,
         gw_coo: MultimaticCoordinator,
         comp_id,
-    ):
+    ) -> None:
         """Initialize entity."""
         MultimaticEntity.__init__(self, coord, DOMAIN, comp_id)
         self._detail_coo = detail_coo

@@ -107,7 +107,9 @@ class ReportSensor(MultimaticEntity, SensorEntity):
 
     def __init__(self, coordinator: MultimaticCoordinator, report: Report) -> None:
         """Init entity."""
-        MultimaticEntity.__init__(self, coordinator, DOMAIN, f"{report.device_id}_{report.id}")
+        MultimaticEntity.__init__(
+            self, coordinator, DOMAIN, f"{report.device_id}_{report.id}"
+        )
         self._report_id = report.id
         self._unit = report.unit
         self._name = report.name

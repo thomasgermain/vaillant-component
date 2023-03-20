@@ -6,6 +6,7 @@ from pymultimatic.model import QuickMode, QuickModes
 import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
+from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
 from homeassistant.util.dt import parse_date
 
@@ -123,7 +124,7 @@ SERVICES = {
 class MultimaticServiceHandler:
     """Service implementation."""
 
-    def __init__(self, hub: MultimaticApi, hass) -> None:
+    def __init__(self, hub: MultimaticApi, hass: HomeAssistant) -> None:
         """Init."""
         self.api = hub
         self._hass = hass

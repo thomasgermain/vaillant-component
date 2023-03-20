@@ -26,6 +26,7 @@ import pymultimatic.utils as multimatic_utils
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -33,10 +34,11 @@ from .const import (
     CONF_APPLICATION,
     CONF_SERIAL_NUMBER,
     DEFAULT_QUICK_VETO_DURATION,
+    DEFAULT_QUICK_VETO_DURATION_HOURS,
     HOLIDAY_MODE,
     QUICK_MODE,
     REFRESH_EVENT,
-    SENSO, DEFAULT_QUICK_VETO_DURATION_HOURS,
+    SENSO,
 )
 from .utils import (
     holiday_mode_from_json,
@@ -51,7 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 class MultimaticApi:
     """Utility to interact with multimatic API."""
 
-    def __init__(self, hass, entry: ConfigEntry):
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Init."""
 
         self.serial = entry.data.get(CONF_SERIAL_NUMBER)
@@ -59,14 +61,18 @@ class MultimaticApi:
 
         username = entry.data[CONF_USERNAME]
         password = entry.data[CONF_PASSWORD]
-        systemApplication = defaults.SENSO if entry.data[CONF_APPLICATION] == SENSO else defaults.MULTIMATIC
+        self._application = (
+            defaults.SENSO
+            if entry.data[CONF_APPLICATION] == SENSO
+            else defaults.MULTIMATIC
+        )
 
         self._manager = pymultimatic.systemmanager.SystemManager(
             user=username,
             password=password,
             session=async_create_clientsession(hass),
             serial=self.serial,
-            application=systemApplication,
+            application=self._application,
         )
 
         self._quick_mode: QuickMode | None = None
@@ -115,7 +121,7 @@ class MultimaticApi:
     async def get_dhw(self):
         """Get domestic hot water.
 
-        There is a 2 queries here, one to ge the dhw and a second one to get the current temperature if
+        There are 2 queries here, one to ge the dhw and a second one to get the current temperature if
         there is a water tank.
         """
         _LOGGER.debug("Will get dhw")
@@ -352,7 +358,7 @@ class MultimaticApi:
 
         q_duration = duration if duration else DEFAULT_QUICK_VETO_DURATION
         # For senso, the duration is in hours
-        if self._manager._application == defaults.SENSO:
+        if self._application == defaults.SENSO:
             q_duration = round(q_duration / 60 / 0.5) * 0.5
         qveto = QuickVeto(q_duration, temperature)
 
@@ -471,7 +477,11 @@ class MultimaticApi:
         entity.async_schedule_update_ha_state(True)
 
     def _default_quick_veto_duration(self):
-        return DEFAULT_QUICK_VETO_DURATION_HOURS if self._manager._application == defaults.SENSO else DEFAULT_QUICK_VETO_DURATION
+        return (
+            DEFAULT_QUICK_VETO_DURATION_HOURS
+            if self._application == defaults.SENSO
+            else DEFAULT_QUICK_VETO_DURATION
+        )
 
 
 class MultimaticCoordinator(DataUpdateCoordinator):
@@ -479,12 +489,12 @@ class MultimaticCoordinator(DataUpdateCoordinator):
 
     def __init__(
         self,
-        hass,
+        hass: HomeAssistant,
         name,
         api: MultimaticApi,
         method: str,
         update_interval: timedelta | None,
-    ):
+    ) -> None:
         """Init."""
 
         self._api_listeners: set = set()
