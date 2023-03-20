@@ -156,7 +156,7 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new target operation mode."""
-        if operation_mode in self._operations.keys():
+        if operation_mode in self._operations:
             mode = self._operations[operation_mode]
             await self.coordinator.api.set_hot_water_operating_mode(self, mode)
         else:

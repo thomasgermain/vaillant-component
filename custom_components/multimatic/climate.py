@@ -38,6 +38,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SERVICES
 from .const import (
+    CONF_APPLICATION,
     DEFAULT_QUICK_VETO_DURATION,
     DOMAIN as MULTIMATIC,
     PRESET_COOLING_FOR_X_DAYS,
@@ -52,7 +53,6 @@ from .const import (
     SENSO,
     VENTILATION,
     ZONES,
-    CONF_APPLICATION,
 )
 from .coordinator import MultimaticCoordinator
 from .entities import MultimaticEntity
@@ -81,7 +81,11 @@ async def async_setup_entry(
     if zones_coo.data:
         for zone in zones_coo.data:
             if not zone.rbr and zone.enabled:
-                climates.append(build_zone_climate(zones_coo, zone, ventilation_coo.data, system_application))
+                climates.append(
+                    build_zone_climate(
+                        zones_coo, zone, ventilation_coo.data, system_application
+                    )
+                )
 
     if rooms_coo.data:
         rbr_zone = next((zone for zone in zones_coo.data if zone.rbr), None)
@@ -113,7 +117,7 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, ABC):
         self,
         coordinator: MultimaticCoordinator,
         comp_id,
-    ):
+    ) -> None:
         """Initialize entity."""
         super().__init__(coordinator, DOMAIN, comp_id)
         self._comp_id = comp_id
@@ -365,7 +369,10 @@ class RoomClimate(MultimaticClimate):
         return int(humidity) if humidity is not None else None
 
 
-def build_zone_climate(coordinator: MultimaticCoordinator, zone: Zone, ventilation, application) -> AbstractZoneClimate:
+def build_zone_climate(
+    coordinator: MultimaticCoordinator, zone: Zone, ventilation, application
+) -> AbstractZoneClimate:
+    """Create correct climate entity."""
     if application == MULTIMATIC:
         return ZoneClimate(coordinator, zone, ventilation)
     return ZoneClimateSenso(coordinator, zone, ventilation)
@@ -373,6 +380,7 @@ def build_zone_climate(coordinator: MultimaticCoordinator, zone: Zone, ventilati
 
 class AbstractZoneClimate(MultimaticClimate, ABC):
     """Abstract class for a climate for a zone."""
+
     def __init__(
         self, coordinator: MultimaticCoordinator, zone: Zone, ventilation
     ) -> None:
@@ -509,6 +517,7 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
         """Set new target preset mode."""
         mode = self._ha_preset()[preset_mode]
         await self.coordinator.api.set_zone_operating_mode(self, mode)
+
 
 class ZoneClimate(AbstractZoneClimate):
     """Climate for a MULTIMATIC zone."""

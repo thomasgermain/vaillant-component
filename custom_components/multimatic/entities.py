@@ -18,7 +18,7 @@ class MultimaticEntity(CoordinatorEntity, ABC):
 
     coordinator: MultimaticCoordinator
 
-    def __init__(self, coordinator: MultimaticCoordinator, domain, device_id):
+    def __init__(self, coordinator: MultimaticCoordinator, domain, device_id) -> None:
         """Initialize entity."""
         super().__init__(coordinator)
 

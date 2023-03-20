@@ -1,22 +1,27 @@
 """The multimatic integration."""
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
+
+from pymultimatic.api import ApiError, defaults
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
-from pymultimatic.api import defaults
 
 from .const import (
+    CONF_APPLICATION,
     CONF_SERIAL_NUMBER,
     COORDINATOR_LIST,
     COORDINATORS,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    FORCE_RELOGIN_TIMEDELTA,
     PLATFORMS,
-    SERVICES_HANDLER, CONF_APPLICATION,
+    RELOGIN_TASK_CLEAN,
+    SERVICES_HANDLER,
 )
 from .coordinator import MultimaticApi, MultimaticCoordinator
 from .service import SERVICES, MultimaticServiceHandler
@@ -71,6 +76,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def logout(event):
         await api.logout()
 
+    async def force_relogin(time: datetime):
+        try:
+            _LOGGER.debug("Periodic relogin")
+            await api.login(True)
+        except ApiError:
+            _LOGGER.debug("Error during periodic login", exc_info=True)
+
+    hass.data[DOMAIN][entry.entry_id][RELOGIN_TASK_CLEAN] = async_track_time_interval(
+        hass, force_relogin, FORCE_RELOGIN_TIMEDELTA
+    )
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, logout)
 
     await async_setup_service(hass, api, entry)
@@ -78,7 +93,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_setup_service(hass, api: MultimaticApi, entry: ConfigEntry):
+async def async_setup_service(
+    hass: HomeAssistant, api: MultimaticApi, entry: ConfigEntry
+):
     """Set up services."""
     serial = api.serial if api.fixed_serial else None
 
@@ -96,7 +113,7 @@ async def async_setup_service(hass, api: MultimaticApi, entry: ConfigEntry):
         hass.data[DOMAIN][entry.entry_id][SERVICES_HANDLER] = service_handler
 
 
-async def async_unload_services(hass, entry: ConfigEntry):
+async def async_unload_services(hass: HomeAssistant, entry: ConfigEntry):
     """Remove services when integration is removed."""
     service_handler = hass.data[DOMAIN][entry.entry_id].get(SERVICES_HANDLER, None)
     if service_handler:
@@ -121,6 +138,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
         )
     )
+
+    relogin_task_clean = hass.data[DOMAIN][entry.entry_id][RELOGIN_TASK_CLEAN]
+    if relogin_task_clean:
+        relogin_task_clean()
+
     if unload_ok:
         await async_unload_services(hass, entry)
         hass.data[DOMAIN].pop(entry.entry_id)
@@ -130,7 +152,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
-async def async_migrate_entry(hass, config_entry: ConfigEntry):
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Migrate old entry."""
     _LOGGER.debug("Migrating from version %s", config_entry.version)
     if config_entry.version == 1:
