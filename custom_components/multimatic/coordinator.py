@@ -229,8 +229,7 @@ class MultimaticApi:
             if current_mode == OperatingModes.QUICK_VETO:
                 await self._manager.remove_room_quick_veto(room.id)
 
-            # Quick Veto for rooms on Multimatic and SensoAPP are in minutes
-            qveto = QuickVeto(DEFAULT_QUICK_VETO_DURATION, target_temp)
+            qveto = QuickVeto(self._default_quick_veto_duration(), target_temp)
             await self._manager.set_room_quick_veto(room.id, qveto)
             room.quick_veto = qveto
 

@@ -1,32 +1,32 @@
 {
-  "config": {
-    "step": {
-      "user": {
-        "data": {
-          "password": "Password",
-          "username": "Username",
-          "application": "Application",
-          "serial_number": "Serial number"
+    "config": {
+        "abort": {
+            "already_configured": "Only one configuration is allowed"
         },
-        "title": "Connection information (same as multiMATIC or Senso application)"
-      }
-    },
-    "error": {
-      "cannot_connect": "Failed to connect, please try again",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
-    },
-    "abort": {
-      "already_configured": "Only one configuration is allowed"
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "data": {
-          "scan_interval": "Minutes between scans"
+        "error": {
+            "cannot_connect": "Failed to connect, please try again",
+            "invalid_auth": "Invalid authentication",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "application": "Application",
+                    "password": "Password",
+                    "serial_number": "Serial number",
+                    "username": "Username"
+                },
+                "title": "Connection information (same as multiMATIC or Senso application)"
+            }
         }
-      }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "scan_interval": "Minutes between scans"
+                }
+            }
+        }
     }
-  }
 }
