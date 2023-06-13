@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 import logging
+import math
 
 from pymultimatic.api import ApiError, defaults
 from pymultimatic.model import (
@@ -201,7 +202,9 @@ class MultimaticApi:
                 hotwater.id, OperatingModes.ON
             )
             hotwater.operating_mode = OperatingModes.ON
-        await self._manager.set_hot_water_setpoint_temperature(hotwater.id, target_temp)
+        await self._manager.set_hot_water_setpoint_temperature(
+            hotwater.id, math.ceil(target_temp)
+        )
         hotwater.target_high = target_temp
 
         await self._refresh(touch_system, entity)
