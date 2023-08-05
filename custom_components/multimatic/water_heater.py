@@ -48,6 +48,8 @@ async def async_setup_entry(
     if coordinator.data and coordinator.data.hotwater:
         entities.append(MultimaticWaterHeater(coordinator))
 
+    _LOGGER.info("Adding %s water heater entities", len(entities))
+
     async_add_entities(entities)
 
 

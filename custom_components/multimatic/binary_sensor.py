@@ -92,10 +92,10 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
     def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         a_mode = self.active_mode
-        return (
-            a_mode.current in (OperatingModes.ON, QuickModes.HOTWATER_BOOST)
-            or a_mode.sub == SettingModes.ON
-        )
+        return a_mode.current in (
+            OperatingModes.ON,
+            QuickModes.HOTWATER_BOOST,
+        ) or a_mode.sub in (SettingModes.ON, SettingModes.DAY)
 
     @property
     def available(self) -> bool:
