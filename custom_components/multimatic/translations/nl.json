@@ -17,7 +17,7 @@
       "unknown": "Onverwachte fout"
     },
     "abort": {
-      "already_configured": "Er is slechts één configuratie toegestaan"
+      "already_configured": "Slechts één configuratie toegestaan"
     }
   },
   "options": {
