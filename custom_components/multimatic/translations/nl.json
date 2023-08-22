@@ -24,7 +24,7 @@
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Minuten tussen scans"
+          "scan_interval": "Minuten tussen scan"
         }
       }
     }
