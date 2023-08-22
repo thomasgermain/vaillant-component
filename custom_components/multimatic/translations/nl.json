@@ -3,28 +3,28 @@
     "step": {
       "user": {
         "data": {
-          "password": "Password",
-          "username": "Username",
-          "application": "Application",
-          "serial_number": "Serial number"
+          "password": "Wachtwoord",
+          "username": "Gebruikersnaam",
+          "application": "Applicatie",
+          "serial_number": "Serienummer"
         },
-        "title": "Connection information (same as multiMATIC or Senso application)"
+        "title": "Connectie informatie (zelfde als multiMATIC of Senso applicatie)"
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect, please try again",
-      "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
+      "cannot_connect": "Kan geen verbinding maken. Probeer het opnieuw",
+      "invalid_auth": "Ongeldige inloggegevens",
+      "unknown": "Onverwachte fout"
     },
     "abort": {
-      "already_configured": "Only one configuration is allowed"
+      "already_configured": "Er is slechts één configuratie toegestaan"
     }
   },
   "options": {
     "step": {
       "init": {
         "data": {
-          "scan_interval": "Minutes between scans"
+          "scan_interval": "Minuten tussen scans"
         }
       }
     }
