@@ -33,7 +33,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SERVICES
@@ -61,7 +61,7 @@ from .utils import get_coordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-_FUNCTION_TO_HVAC_ACTION: dict[ActiveFunction, str] = {
+_FUNCTION_TO_HVAC_ACTION: dict[ActiveFunction, HVACAction] = {
     ActiveFunction.COOLING: HVACAction.COOLING,
     ActiveFunction.HEATING: HVACAction.HEATING,
     ActiveFunction.STANDBY: HVACAction.IDLE,
@@ -271,7 +271,7 @@ class RoomClimate(MultimaticClimate):
         return self.coordinator.find_component(self._room_id)
 
     @property
-    def hvac_mode(self) -> str:
+    def hvac_mode(self) -> HVACMode:
         """Get the hvac mode based on multimatic mode."""
         hvac_mode = RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
         if not hvac_mode:
@@ -349,7 +349,7 @@ class RoomClimate(MultimaticClimate):
         await self.coordinator.api.set_room_operating_mode(self, mode)
 
     @property
-    def hvac_action(self) -> str | None:
+    def hvac_action(self) -> HVACAction:
         """Return the current running hvac operation if supported.
 
         Need to be one of CURRENT_HVAC_*.
@@ -494,7 +494,7 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
         await self.coordinator.api.set_zone_operating_mode(self, mode)
 
     @property
-    def hvac_action(self) -> str | None:
+    def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation if supported.
 
         Need to be one of CURRENT_HVAC_*.
