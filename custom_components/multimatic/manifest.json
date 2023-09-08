@@ -5,14 +5,14 @@
   "documentation": "https://github.com/thomasgermain/vaillant-component",
   "issue_tracker": "https://github.com/thomasgermain/vaillant-component/issues",
   "requirements": [
-    "pymultimatic==0.7.0"
+    "pymultimatic==0.7.1"
   ],
   "ssdp": [],
   "zeroconf": [],
   "homekit": {},
   "dependencies": [],
   "codeowners": ["@thomasgermain"],
-  "version": "1.14.2",
+  "version": "1.14.3",
   "iot_class": "cloud_polling",
   "integration_type": "hub"
 }
