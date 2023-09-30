@@ -15,7 +15,7 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfEnergy, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
@@ -96,11 +96,6 @@ class OutdoorTemperatureSensor(MultimaticEntity, SensorEntity):
         """Return the state class of this entity."""
         return SensorStateClass.MEASUREMENT
 
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
-
 
 class ReportSensor(MultimaticEntity, SensorEntity):
     """Report sensor."""
@@ -169,11 +164,6 @@ class ReportSensor(MultimaticEntity, SensorEntity):
         """Return the name of the entity."""
         return self._name
 
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
-
 
 class EmfReportSensor(MultimaticEntity, SensorEntity):
     """Emf Report sensor."""
@@ -236,8 +226,3 @@ class EmfReportSensor(MultimaticEntity, SensorEntity):
     def state_class(self) -> str:
         """Return the state class of this entity."""
         return SensorStateClass.TOTAL_INCREASING
-
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC

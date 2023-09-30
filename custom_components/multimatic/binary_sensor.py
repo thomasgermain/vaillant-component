@@ -15,8 +15,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import slugify
 
@@ -117,11 +116,6 @@ class CirculationSensor(MultimaticEntity, BinarySensorEntity):
         return self.coordinator.data.circulation.name
 
     @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
-
-    @property
     def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.RUNNING
@@ -161,11 +155,6 @@ class RoomWindow(MultimaticEntity, BinarySensorEntity):
     def room(self) -> Room:
         """Return the room."""
         return self.coordinator.find_component(self._room_id)
-
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
 
 
 class RoomDeviceEntity(MultimaticEntity, BinarySensorEntity):
@@ -254,11 +243,6 @@ class RoomDeviceChildLock(RoomDeviceEntity):
     def device_class(self) -> BinarySensorDeviceClass | None:
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.LOCK
-
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
 
 
 class RoomDeviceBattery(RoomDeviceEntity):
@@ -403,11 +387,6 @@ class BoxOnline(VRBoxEntity):
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.CONNECTIVITY
 
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
-
 
 class BoilerStatus(MultimaticEntity, BinarySensorEntity):
     """Check if there is some error."""
@@ -476,11 +455,6 @@ class BoilerStatus(MultimaticEntity, BinarySensorEntity):
         """Return the class of this device, from component DEVICE_CLASSES."""
         return BinarySensorDeviceClass.PROBLEM
 
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
-
 
 class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
     """Check if there is any error message from system."""
@@ -529,11 +503,6 @@ class MultimaticErrors(MultimaticEntity, BinarySensorEntity):
         """Return the name of the entity."""
         return "Multimatic Errors"
 
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
-
 
 class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
     """Binary sensor for holiday mode."""
@@ -567,11 +536,6 @@ class HolidayModeSensor(MultimaticEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         return self.coordinator.last_update_success
-
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
 
     @property
     def device_class(self) -> BinarySensorDeviceClass | None:
@@ -610,11 +574,6 @@ class QuickModeSensor(MultimaticEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Return if entity is available."""
         return self.coordinator.last_update_success
-
-    @property
-    def entity_category(self) -> EntityCategory | None:
-        """Return the category of the entity, if any."""
-        return EntityCategory.DIAGNOSTIC
 
     @property
     def device_class(self) -> BinarySensorDeviceClass | None:
