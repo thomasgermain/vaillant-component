@@ -2,10 +2,12 @@
 import logging
 from typing import Any
 
-from pymultimatic.model import HotWater, OperatingModes, QuickModes
+from pymultimatic.model import HotWater, OperatingMode, OperatingModes, QuickModes
 
 from homeassistant.components.water_heater import (
     DOMAIN,
+    STATE_OFF,
+    STATE_ON,
     UnitOfTemperature,
     WaterHeaterEntity,
     WaterHeaterEntityFeature,
@@ -26,6 +28,7 @@ SUPPORTED_FLAGS = (
     WaterHeaterEntityFeature.TARGET_TEMPERATURE
     | WaterHeaterEntityFeature.OPERATION_MODE
     | WaterHeaterEntityFeature.AWAY_MODE
+    | WaterHeaterEntityFeature.ON_OFF
 )
 ATTR_CURRENT_TEMPERATURE = "current_temperature"
 ATTR_TIME_PROGRAM = "time_program"
@@ -36,6 +39,23 @@ AWAY_MODES = [
     QuickModes.ONE_DAY_AWAY,
     QuickModes.SYSTEM_OFF,
 ]
+
+FROM_HA_MAPPING: dict[str, OperatingMode] = {
+    STATE_OFF: OperatingModes.OFF,
+    STATE_ON: OperatingModes.ON,
+    "auto": OperatingModes.AUTO,
+}
+
+TO_HA_MAPPING: dict[OperatingMode, str] = {
+    OperatingModes.OFF: STATE_OFF,
+    QuickModes.HOLIDAY: STATE_OFF,
+    QuickModes.ONE_DAY_AWAY: STATE_OFF,
+    QuickModes.SYSTEM_OFF: STATE_OFF,
+    QuickModes.HOTWATER_BOOST: STATE_ON,
+    QuickModes.PARTY: STATE_OFF,
+    OperatingModes.ON: STATE_ON,
+    OperatingModes.AUTO: "auto",
+}
 
 
 async def async_setup_entry(
@@ -59,7 +79,7 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
     def __init__(self, coordinator: MultimaticCoordinator) -> None:
         """Initialize entity."""
         super().__init__(coordinator, DOMAIN, coordinator.data.hotwater.id)
-        self._operations = {mode.name: mode for mode in HotWater.MODES}
+        self._operations: list = list(FROM_HA_MAPPING.keys())
         self._name = coordinator.data.hotwater.name
 
     @property
@@ -135,15 +155,15 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
         return HotWater.MAX_TARGET_TEMP
 
     @property
-    def current_operation(self) -> str:
+    def current_operation(self) -> str | None:
         """Return current operation ie. eco, electric, performance, ..."""
-        return self.active_mode.current.name
+        return TO_HA_MAPPING[self.active_mode.current]
 
     @property
     def operation_list(self) -> list[str]:
         """Return current operation ie. eco, electric, performance, ..."""
         if self.active_mode.current != QuickModes.HOLIDAY:
-            return list(self._operations.keys())
+            return self._operations
         return []
 
     @property
@@ -158,8 +178,10 @@ class MultimaticWaterHeater(MultimaticEntity, WaterHeaterEntity):
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new target operation mode."""
-        if operation_mode in self._operations:
-            mode = self._operations[operation_mode]
+        mode: OperatingMode = FROM_HA_MAPPING.get(operation_mode.lower())
+
+        if mode is not None:
+            _LOGGER.info("Will set %s operating mode for hot water", mode)
             await self.coordinator.api.set_hot_water_operating_mode(self, mode)
         else:
             _LOGGER.debug("Operation mode %s is unknown", operation_mode)
