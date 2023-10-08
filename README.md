@@ -114,5 +114,33 @@ Modes mapping:
 | HOLIDAY | `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom) |
 | QM_COOLING_FOR_X_DAYS | no hvac & `PRESET_COOLING_FOR_X_DAYS` |
 
+### DHW climate
+
+| Vaillant Mode               | HA HVAC            | HA preset         |
+|-----------------------------|--------------------|-------------------|
+| AUTO                        | AUTO               | PRESET_COMFORT    |
+| OFF                         | OFF                | PRESET_NONE       |
+| HOLIDAY (quick mode)        | OFF                | PRESET_AWAY       |
+| ONE_DAY_AWAY (quick mode)   | OFF                | PRESET_AWAY       |
+| SYSTEM_OFF (quick mode)     | OFF                | PRESET_SYSTEM_OFF |
+| HOTWATER_BOOST (quick mode) | depends on state   | PRESET_BOOST      |
+| PARTY (quick mode)          | OFF                | PRESET_HOME       |
+| ON                          | depedends on state | PRESET_NONE       |
+
+#### Available HVAC mode
+
+| HVAC mode | Multimatic mode |
+|-----------|-----------------|
+| AUTO      | AUTO            |
+| OFF       | OFF             |
+| HEAT      | ON              |
+
+#### Available preset mode
+
+| preset mode    | Multimatic mode             |
+|----------------|-----------------------------|
+| PRESET_COMFORT | AUTO                        |
+| PRESET_BOOST   | HOTWATER_BOOST (quick mode) |
+
 ---
 <a href="https://www.buymeacoffee.com/tgermain" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;" ></a>

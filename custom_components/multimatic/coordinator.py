@@ -274,8 +274,13 @@ class MultimaticApi:
         hotwater = entity.component
         touch_system = await self._remove_quick_mode_or_holiday(entity)
 
-        await self._manager.set_hot_water_operating_mode(hotwater.id, mode)
-        hotwater.operating_mode = mode
+        if isinstance(mode, QuickMode):
+            await self._hard_set_quick_mode(mode)
+            self._quick_mode = mode
+            touch_system = True
+        else:
+            await self._manager.set_hot_water_operating_mode(hotwater.id, mode)
+            hotwater.operating_mode = mode
 
         await self._refresh(touch_system, entity)
 
