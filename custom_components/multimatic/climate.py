@@ -363,8 +363,9 @@ class RoomClimate(MultimaticClimate):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
-        mode = RoomClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
-        await self.coordinator.api.set_room_operating_mode(self, mode)
+        if preset_mode != "":
+            mode = RoomClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
+            await self.coordinator.api.set_room_operating_mode(self, mode)
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -468,8 +469,9 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
-        mode = self._ha_preset()[preset_mode]
-        await self.coordinator.api.set_zone_operating_mode(self, mode)
+        if preset_mode != "":
+            mode = self._ha_preset()[preset_mode]
+            await self.coordinator.api.set_zone_operating_mode(self, mode)
 
 
 class ZoneClimate(AbstractZoneClimate):
@@ -636,9 +638,10 @@ class DHWClimate(MultimaticClimate):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
-        mode = DHWClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
-        _LOGGER.info("Will set %s operation mode to hot water", mode)
-        await self.coordinator.api.set_hot_water_operating_mode(self, mode)
+        if preset_mode != "":
+            mode = DHWClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
+            _LOGGER.info("Will set %s operation mode to hot water", mode)
+            await self.coordinator.api.set_hot_water_operating_mode(self, mode)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
