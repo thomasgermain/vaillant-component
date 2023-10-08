@@ -88,7 +88,7 @@ Changing temperature while ...
 Modes mapping:
 - `AUTO` -> `HVAC_MODE_AUTO` & `PRESET_COMFORT`
 - `OFF` -> `HVAC_MODE_OFF` & no preset
-- `QUICK_VETO` -> no hvac & `PRESET_QUICK_VETO` (custom)
+- `QUICK_VETO` -> hvac depends on state & `PRESET_QUICK_VETO` (custom)
 - `QM_SYSTEM_OFF` -> `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)
 - `HOLIDAY` -> `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)
 - `MANUAL` -> no hvac & `PRESET_MANUAL` (custom)
@@ -98,21 +98,21 @@ On **zone** climate:
 
 Modes mapping:
 	
-| Vaillant Mode | HA Mode |
-| ------------- |-------- |
-| AUTO | `HVAC_MODE_AUTO` & `PRESET_COMFORT` |
-| DAY | no hvac & `PRESET_DAY` (custom) |
-| NIGHT | no hvac & `PRESET_SLEEP` |
-| OFF | `HVAC_MODE_OFF` & no preset |
-| ON (= cooling ON) | no hvac & `PRESET_COOLING_ON` (custom) |
-| QUICK_VETO | no hvac & `PRESET_QUICK_VETO` (custom) |
-| QM_ONE_DAY_AT_HOME | HVAC_MODE_AUTO & `PRESET_HOME` |
-| QM_PARTY | no hvac & `PRESET_PARTY` (custom) |
-| QM_VENTILATION_BOOST | `HVAC_MODE_FAN_ONLY` & no preset |
-| QM_ONE_DAY_AWAY | `HVAC_MODE_OFF` & `PRESET_AWAY` |
-| QM_SYSTEM_OFF | `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom) |
-| HOLIDAY | `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom) |
-| QM_COOLING_FOR_X_DAYS | no hvac & `PRESET_COOLING_FOR_X_DAYS` |
+| Vaillant Mode | HA Mode                                             |
+| ------------- |-----------------------------------------------------|
+| AUTO | `HVAC_MODE_AUTO` & `PRESET_COMFORT`                 |
+| DAY | no hvac & `PRESET_DAY` (custom)                     |
+| NIGHT | no hvac & `PRESET_SLEEP`                            |
+| OFF | `HVAC_MODE_OFF` & no preset                         |
+| ON (= cooling ON) | no hvac & `PRESET_COOLING_ON` (custom)              |
+| QUICK_VETO | depends on the state & `PRESET_QUICK_VETO` (custom) |
+| QM_ONE_DAY_AT_HOME | HVAC_MODE_AUTO & `PRESET_HOME`                      |
+| QM_PARTY | no hvac & `PRESET_PARTY` (custom)                   |
+| QM_VENTILATION_BOOST | `HVAC_MODE_FAN_ONLY` & no preset                    |
+| QM_ONE_DAY_AWAY | `HVAC_MODE_OFF` & `PRESET_AWAY`                     |
+| QM_SYSTEM_OFF | `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)      |
+| HOLIDAY | `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)         |
+| QM_COOLING_FOR_X_DAYS | no hvac & `PRESET_COOLING_FOR_X_DAYS`               |
 
 ### DHW climate
 
