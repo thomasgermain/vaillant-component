@@ -10,6 +10,7 @@ from pymultimatic.model import (
     ActiveFunction,
     ActiveMode,
     Component,
+    HotWater,
     Mode,
     OperatingModes,
     QuickModes,
@@ -20,6 +21,7 @@ from pymultimatic.model import (
 from homeassistant.components.climate import (
     DOMAIN,
     PRESET_AWAY,
+    PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_HOME,
     PRESET_NONE,
@@ -40,6 +42,7 @@ from . import SERVICES
 from .const import (
     CONF_APPLICATION,
     DEFAULT_QUICK_VETO_DURATION,
+    DHW,
     DOMAIN as MULTIMATIC,
     PRESET_COOLING_FOR_X_DAYS,
     PRESET_COOLING_ON,
@@ -75,6 +78,8 @@ async def async_setup_entry(
     climates: list[MultimaticClimate] = []
     zones_coo = get_coordinator(hass, ZONES, entry.entry_id)
     rooms_coo = get_coordinator(hass, ROOMS, entry.entry_id)
+    dhw_coo = get_coordinator(hass, DHW, entry.entry_id)
+
     ventilation_coo = get_coordinator(hass, VENTILATION, entry.entry_id)
     system_application = SENSO if entry.data[CONF_APPLICATION] == SENSO else MULTIMATIC
 
@@ -91,6 +96,9 @@ async def async_setup_entry(
         rbr_zone = next((zone for zone in zones_coo.data if zone.rbr), None)
         for room in rooms_coo.data:
             climates.append(RoomClimate(rooms_coo, zones_coo, room, rbr_zone))
+
+    if dhw_coo.data:
+        climates.append(DHWClimate(dhw_coo))
 
     _LOGGER.info("Adding %s climate entities", len(climates))
 
@@ -121,6 +129,8 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, ABC):
         """Initialize entity."""
         super().__init__(coordinator, DOMAIN, comp_id)
         self._comp_id = comp_id
+        self._supported_hvac = list(self._ha_mode().keys())
+        self._supported_presets = list(self._ha_preset().keys())
 
     async def set_quick_veto(self, **kwargs):
         """Set quick veto, called by service."""
@@ -141,6 +151,18 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, ABC):
     @abstractmethod
     def component(self) -> Component:
         """Return the room or the zone."""
+
+    @abstractmethod
+    def _ha_mode(self):
+        pass
+
+    @abstractmethod
+    def _multimatic_mode(self):
+        pass
+
+    @abstractmethod
+    def _ha_preset(self):
+        pass
 
     @property
     def available(self) -> bool:
@@ -217,6 +239,39 @@ class MultimaticClimate(MultimaticEntity, ClimateEntity, ABC):
         """Return the lowbound target temperature we try to reach."""
         return None
 
+    @property
+    def hvac_modes(self) -> list[HVACMode]:
+        """Return the list of available hvac operation modes."""
+        return self._supported_hvac
+
+    @property
+    def preset_modes(self) -> list[str] | None:
+        """Return a list of available preset modes.
+
+        Requires SUPPORT_PRESET_MODE.
+        """
+
+        mapping = self._multimatic_mode().get(self.active_mode.current)
+        if (
+            mapping is not None
+            and mapping[1] is not None
+            and mapping[1] not in self._supported_presets
+        ):
+            return self._supported_presets + [mapping[1]]
+        return self._supported_presets
+
+    @property
+    def preset_mode(self) -> str | None:
+        """Return the current preset mode, e.g., home, away, temp."""
+        return self._multimatic_mode()[self.active_mode.current][1]
+
+    @property
+    def supported_features(self) -> ClimateEntityFeature:
+        """Return the list of supported features."""
+        return (
+            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        )
+
 
 class RoomClimate(MultimaticClimate):
     """Climate for a room."""
@@ -248,9 +303,16 @@ class RoomClimate(MultimaticClimate):
         super().__init__(coordinator, room.name)
         self._zone_id = zone.id if zone else None
         self._room_id = room.id
-        self._supported_hvac = list(RoomClimate._HA_MODE_TO_MULTIMATIC.keys())
-        self._supported_presets = list(RoomClimate._HA_PRESET_TO_MULTIMATIC.keys())
         self._zone_coo = zone_coo
+
+    def _ha_mode(self):
+        return RoomClimate._HA_MODE_TO_MULTIMATIC
+
+    def _multimatic_mode(self):
+        return RoomClimate._MULTIMATIC_TO_HA
+
+    def _ha_preset(self):
+        return RoomClimate._HA_PRESET_TO_MULTIMATIC
 
     @property
     def device_info(self) -> DeviceInfo | None:
@@ -275,25 +337,14 @@ class RoomClimate(MultimaticClimate):
         """Get the hvac mode based on multimatic mode."""
         hvac_mode = RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
         if not hvac_mode:
-            if (
-                self.active_mode.current
-                in (OperatingModes.MANUAL, OperatingModes.QUICK_VETO)
-                and self.hvac_action == HVACAction.HEATING
+            if self.active_mode.current in (
+                OperatingModes.MANUAL,
+                OperatingModes.QUICK_VETO,
             ):
-                return HVACMode.HEAT
+                if self.hvac_action == HVACAction.HEATING:
+                    return HVACMode.HEAT
+                return HVACMode.OFF
         return hvac_mode
-
-    @property
-    def hvac_modes(self) -> list[HVACMode]:
-        """Return the list of available hvac operation modes."""
-        return self._supported_hvac
-
-    @property
-    def supported_features(self) -> ClimateEntityFeature:
-        """Return the list of supported features."""
-        return (
-            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
-        )
 
     @property
     def min_temp(self) -> float:
@@ -324,24 +375,6 @@ class RoomClimate(MultimaticClimate):
         """Set new target hvac mode."""
         mode = RoomClimate._HA_MODE_TO_MULTIMATIC[hvac_mode]
         await self.coordinator.api.set_room_operating_mode(self, mode)
-
-    @property
-    def preset_mode(self) -> str | None:
-        """Return the current preset mode, e.g., home, away, temp.
-
-        Requires SUPPORT_PRESET_MODE.
-        """
-        return RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][1]
-
-    @property
-    def preset_modes(self) -> list[str] | None:
-        """Return a list of available preset modes.
-
-        Requires SUPPORT_PRESET_MODE.
-        """
-        if self.active_mode.current == OperatingModes.QUICK_VETO:
-            return self._supported_presets + [PRESET_QUICK_VETO]
-        return self._supported_presets
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
@@ -387,9 +420,6 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
         """Initialize entity."""
         super().__init__(coordinator, zone.id)
 
-        self._supported_hvac = list(self._ha_mode().keys())
-        self._supported_presets = list(self._ha_preset().keys())
-
         if not zone.cooling:
             self._supported_presets.remove(PRESET_COOLING_ON)
             self._supported_presets.remove(PRESET_COOLING_FOR_X_DAYS)
@@ -399,18 +429,6 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
             self._supported_hvac.remove(HVACMode.FAN_ONLY)
 
         self._zone_id = zone.id
-
-    @abstractmethod
-    def _ha_mode(self):
-        pass
-
-    @abstractmethod
-    def _multimatic_mode(self):
-        pass
-
-    @abstractmethod
-    def _ha_preset(self):
-        pass
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
@@ -452,18 +470,6 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
         return hvac_mode if hvac_mode else HVACMode.OFF
 
     @property
-    def hvac_modes(self) -> list[HVACMode]:
-        """Return the list of available hvac operation modes."""
-        return self._supported_hvac
-
-    @property
-    def supported_features(self) -> ClimateEntityFeature:
-        """Return the list of supported features."""
-        return (
-            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
-        )
-
-    @property
     def min_temp(self) -> float:
         """Return the minimum temperature."""
         return Zone.MIN_TARGET_HEATING_TEMP
@@ -472,11 +478,6 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
     def max_temp(self) -> float:
         """Return the maximum temperature."""
         return Zone.MAX_TARGET_TEMP
-
-    @property
-    def target_temperature(self) -> float:
-        """Return the temperature we try to reach."""
-        return self.active_mode.target
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
@@ -500,18 +501,6 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
         Need to be one of CURRENT_HVAC_*.
         """
         return _FUNCTION_TO_HVAC_ACTION.get(self.component.active_function)
-
-    @property
-    def preset_mode(self) -> str | None:
-        """Return the current preset mode, e.g., home, away, temp."""
-        return self._multimatic_mode()[self.active_mode.current][1]
-
-    @property
-    def preset_modes(self) -> list[str] | None:
-        """Return a list of available preset modes."""
-        if self.active_mode.current == OperatingModes.QUICK_VETO:
-            return self._supported_presets + [PRESET_QUICK_VETO]
-        return self._supported_presets
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
@@ -612,3 +601,100 @@ class ZoneClimateSenso(AbstractZoneClimate):
 
     def _ha_preset(self):
         return ZoneClimateSenso._HA_PRESET_TO_SENSO
+
+
+class DHWClimate(MultimaticClimate):
+    """Climate entity representing DHW."""
+
+    _HA_MODE_TO_MULTIMATIC = {
+        HVACMode.OFF: OperatingModes.OFF,
+        HVACMode.HEAT: OperatingModes.ON,
+        HVACMode.AUTO: OperatingModes.AUTO,
+    }
+
+    _HA_PRESET_TO_MULTIMATIC = {
+        PRESET_COMFORT: OperatingModes.AUTO,
+        PRESET_BOOST: QuickModes.HOTWATER_BOOST,
+    }
+
+    _MULTIMATIC_TO_HA: dict[Mode, list] = {
+        OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_AWAY],
+        QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
+        QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
+        QuickModes.HOTWATER_BOOST: [HVACMode.HEAT, PRESET_BOOST],
+        QuickModes.PARTY: [HVACMode.OFF, PRESET_HOME],
+        OperatingModes.ON: [HVACMode.HEAT, PRESET_NONE],
+        OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
+    }
+
+    def __init__(self, coordinator: MultimaticCoordinator) -> None:
+        """Initialize entity."""
+        super().__init__(coordinator, coordinator.data.hotwater.id)
+
+    async def set_quick_veto(self, **kwargs):
+        """Set quick veto, called by service."""
+        _LOGGER.info("Cannot set quick veto for hotwater")
+
+    async def remove_quick_veto(self, **kwargs):
+        """Remove quick veto, called by service."""
+        _LOGGER.info("Cannot remove quick veto for hotwater")
+
+    @property
+    def component(self) -> Component:
+        """Return the DHW component."""
+        return self.coordinator.data.hotwater
+
+    @property
+    def min_temp(self) -> float:
+        """Return the minimum temperature."""
+        return HotWater.MIN_TARGET_TEMP
+
+    @property
+    def max_temp(self) -> float:
+        """Return the maximum temperature."""
+        return HotWater.MAX_TARGET_TEMP
+
+    def _ha_mode(self):
+        return DHWClimate._HA_MODE_TO_MULTIMATIC
+
+    def _multimatic_mode(self):
+        return DHWClimate._MULTIMATIC_TO_HA
+
+    def _ha_preset(self):
+        return DHWClimate._HA_PRESET_TO_MULTIMATIC
+
+    @property
+    def hvac_action(self) -> HVACAction | None:
+        """Return the current running hvac operation if supported."""
+        should_heat = (
+            self.current_temperature is None
+            or self.current_temperature < self.target_temperature
+        )
+        return (
+            HVACAction.HEATING
+            if should_heat and self.hvac_mode != HVACMode.OFF
+            else HVACAction.IDLE
+        )
+
+    @property
+    def hvac_mode(self) -> HVACMode | None:
+        """Return hvac operation ie. heat, cool mode."""
+        return DHWClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set new target preset mode."""
+        mode = DHWClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
+        _LOGGER.info("Will set %s operation mode to hot water", mode)
+        await self.coordinator.api.set_hot_water_operating_mode(self, mode)
+
+    async def async_set_temperature(self, **kwargs: Any) -> None:
+        """Set new target temperature."""
+        await self.coordinator.api.set_hot_water_target_temperature(
+            self, kwargs.get(ATTR_TEMPERATURE)
+        )
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set new target hvac mode."""
+        mode = DHWClimate._HA_MODE_TO_MULTIMATIC[hvac_mode]
+        await self.coordinator.api.set_hot_water_operating_mode(self, mode)

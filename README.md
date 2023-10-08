@@ -88,7 +88,7 @@ Changing temperature while ...
 Modes mapping:
 - `AUTO` -> `HVAC_MODE_AUTO` & `PRESET_COMFORT`
 - `OFF` -> `HVAC_MODE_OFF` & no preset
-- `QUICK_VETO` -> no hvac & `PRESET_QUICK_VETO` (custom)
+- `QUICK_VETO` -> hvac depends on state & `PRESET_QUICK_VETO` (custom)
 - `QM_SYSTEM_OFF` -> `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)
 - `HOLIDAY` -> `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)
 - `MANUAL` -> no hvac & `PRESET_MANUAL` (custom)
@@ -98,21 +98,49 @@ On **zone** climate:
 
 Modes mapping:
 	
-| Vaillant Mode | HA Mode |
-| ------------- |-------- |
-| AUTO | `HVAC_MODE_AUTO` & `PRESET_COMFORT` |
-| DAY | no hvac & `PRESET_DAY` (custom) |
-| NIGHT | no hvac & `PRESET_SLEEP` |
-| OFF | `HVAC_MODE_OFF` & no preset |
-| ON (= cooling ON) | no hvac & `PRESET_COOLING_ON` (custom) |
-| QUICK_VETO | no hvac & `PRESET_QUICK_VETO` (custom) |
-| QM_ONE_DAY_AT_HOME | HVAC_MODE_AUTO & `PRESET_HOME` |
-| QM_PARTY | no hvac & `PRESET_PARTY` (custom) |
-| QM_VENTILATION_BOOST | `HVAC_MODE_FAN_ONLY` & no preset |
-| QM_ONE_DAY_AWAY | `HVAC_MODE_OFF` & `PRESET_AWAY` |
-| QM_SYSTEM_OFF | `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom) |
-| HOLIDAY | `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom) |
-| QM_COOLING_FOR_X_DAYS | no hvac & `PRESET_COOLING_FOR_X_DAYS` |
+| Vaillant Mode | HA Mode                                             |
+| ------------- |-----------------------------------------------------|
+| AUTO | `HVAC_MODE_AUTO` & `PRESET_COMFORT`                 |
+| DAY | no hvac & `PRESET_DAY` (custom)                     |
+| NIGHT | no hvac & `PRESET_SLEEP`                            |
+| OFF | `HVAC_MODE_OFF` & no preset                         |
+| ON (= cooling ON) | no hvac & `PRESET_COOLING_ON` (custom)              |
+| QUICK_VETO | depends on the state & `PRESET_QUICK_VETO` (custom) |
+| QM_ONE_DAY_AT_HOME | HVAC_MODE_AUTO & `PRESET_HOME`                      |
+| QM_PARTY | no hvac & `PRESET_PARTY` (custom)                   |
+| QM_VENTILATION_BOOST | `HVAC_MODE_FAN_ONLY` & no preset                    |
+| QM_ONE_DAY_AWAY | `HVAC_MODE_OFF` & `PRESET_AWAY`                     |
+| QM_SYSTEM_OFF | `HVAC_MODE_OFF` & `PRESET_SYSTEM_OFF` (custom)      |
+| HOLIDAY | `HVAC_MODE_OFF` & `PRESET_HOLIDAY` (custom)         |
+| QM_COOLING_FOR_X_DAYS | no hvac & `PRESET_COOLING_FOR_X_DAYS`               |
+
+### DHW climate
+
+| Vaillant Mode               | HA HVAC | HA preset         |
+|-----------------------------|---------|-------------------|
+| AUTO                        | AUTO    | PRESET_COMFORT    |
+| OFF                         | OFF     | PRESET_NONE       |
+| HOLIDAY (quick mode)        | OFF     | PRESET_AWAY       |
+| ONE_DAY_AWAY (quick mode)   | OFF     | PRESET_AWAY       |
+| SYSTEM_OFF (quick mode)     | OFF     | PRESET_SYSTEM_OFF |
+| HOTWATER_BOOST (quick mode) | HEAT    | PRESET_BOOST      |
+| PARTY (quick mode)          | OFF     | PRESET_HOME       |
+| ON                          | HEAT    | PRESET_NONE       |
+
+#### Available HVAC mode
+
+| HVAC mode | Multimatic mode |
+|-----------|-----------------|
+| AUTO      | AUTO            |
+| OFF       | OFF             |
+| HEAT      | ON              |
+
+#### Available preset mode
+
+| preset mode    | Multimatic mode             |
+|----------------|-----------------------------|
+| PRESET_COMFORT | AUTO                        |
+| PRESET_BOOST   | HOTWATER_BOOST (quick mode) |
 
 ---
 <a href="https://www.buymeacoffee.com/tgermain" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;" ></a>
