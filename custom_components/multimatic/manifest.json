@@ -12,7 +12,7 @@
   "homekit": {},
   "dependencies": [],
   "codeowners": ["@thomasgermain"],
-  "version": "1.16.0",
+  "version": "1.17.0b0",
   "iot_class": "cloud_polling",
   "integration_type": "hub"
 }
