@@ -116,16 +116,16 @@ Modes mapping:
 
 ### DHW climate
 
-| Vaillant Mode               | HA HVAC            | HA preset         |
-|-----------------------------|--------------------|-------------------|
-| AUTO                        | AUTO               | PRESET_COMFORT    |
-| OFF                         | OFF                | PRESET_NONE       |
-| HOLIDAY (quick mode)        | OFF                | PRESET_AWAY       |
-| ONE_DAY_AWAY (quick mode)   | OFF                | PRESET_AWAY       |
-| SYSTEM_OFF (quick mode)     | OFF                | PRESET_SYSTEM_OFF |
-| HOTWATER_BOOST (quick mode) | depends on state   | PRESET_BOOST      |
-| PARTY (quick mode)          | OFF                | PRESET_HOME       |
-| ON                          | depedends on state | PRESET_NONE       |
+| Vaillant Mode               | HA HVAC | HA preset         |
+|-----------------------------|---------|-------------------|
+| AUTO                        | AUTO    | PRESET_COMFORT    |
+| OFF                         | OFF     | PRESET_NONE       |
+| HOLIDAY (quick mode)        | OFF     | PRESET_AWAY       |
+| ONE_DAY_AWAY (quick mode)   | OFF     | PRESET_AWAY       |
+| SYSTEM_OFF (quick mode)     | OFF     | PRESET_SYSTEM_OFF |
+| HOTWATER_BOOST (quick mode) | HEAT    | PRESET_BOOST      |
+| PARTY (quick mode)          | OFF     | PRESET_HOME       |
+| ON                          | HEAT    | PRESET_NONE       |
 
 #### Available HVAC mode
 

@@ -622,9 +622,9 @@ class DHWClimate(MultimaticClimate):
         QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_AWAY],
         QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
         QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
-        QuickModes.HOTWATER_BOOST: [None, PRESET_BOOST],
+        QuickModes.HOTWATER_BOOST: [HVACMode.HEAT, PRESET_BOOST],
         QuickModes.PARTY: [HVACMode.OFF, PRESET_HOME],
-        OperatingModes.ON: [None, PRESET_NONE],
+        OperatingModes.ON: [HVACMode.HEAT, PRESET_NONE],
         OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
     }
 
@@ -667,19 +667,20 @@ class DHWClimate(MultimaticClimate):
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation if supported."""
+        should_heat = (
+            self.current_temperature is None
+            or self.current_temperature < self.target_temperature
+        )
         return (
-            HVACAction.HEATING if self.hvac_mode == HVACMode.HEAT else HVACAction.IDLE
+            HVACAction.HEATING
+            if should_heat and self.hvac_mode != HVACMode.OFF
+            else HVACAction.IDLE
         )
 
     @property
     def hvac_mode(self) -> HVACMode | None:
         """Return hvac operation ie. heat, cool mode."""
-        hvac_mode = DHWClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
-        if not hvac_mode:
-            if self.current_temperature < self.target_temperature:
-                return HVACMode.HEAT
-            return HVACMode.OFF
-        return hvac_mode
+        return DHWClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
