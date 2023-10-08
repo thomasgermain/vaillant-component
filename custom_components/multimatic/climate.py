@@ -274,10 +274,10 @@ class RoomClimate(MultimaticClimate):
     _MULTIMATIC_TO_HA: dict[Mode, list] = {
         OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
         OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
-        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
+        OperatingModes.QUICK_VETO: [HVACMode.HEAT, PRESET_QUICK_VETO],
         QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
         QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_AWAY],
-        OperatingModes.MANUAL: [None, PRESET_HOME],
+        OperatingModes.MANUAL: [HVACMode.HEAT, PRESET_HOME],
     }
 
     _HA_MODE_TO_MULTIMATIC = {
@@ -329,16 +329,7 @@ class RoomClimate(MultimaticClimate):
     @property
     def hvac_mode(self) -> HVACMode:
         """Get the hvac mode based on multimatic mode."""
-        hvac_mode = RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
-        if not hvac_mode:
-            if self.active_mode.current in (
-                OperatingModes.MANUAL,
-                OperatingModes.QUICK_VETO,
-            ):
-                if self.hvac_action == HVACAction.HEATING:
-                    return HVACMode.HEAT
-                return HVACMode.OFF
-        return hvac_mode
+        return RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
 
     @property
     def min_temp(self) -> float:
@@ -440,26 +431,7 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
     @property
     def hvac_mode(self) -> HVACMode:
         """Get the hvac mode based on multimatic mode."""
-        current_mode = self.active_mode.current
-        hvac_mode = self._multimatic_mode()[current_mode][0]
-        if not hvac_mode:
-            if (
-                current_mode
-                in [
-                    OperatingModes.DAY,
-                    OperatingModes.NIGHT,
-                    QuickModes.PARTY,
-                    OperatingModes.QUICK_VETO,
-                ]
-                and self.hvac_action == HVACAction.HEATING
-            ):
-                return HVACMode.HEAT
-            if (
-                self.preset_mode == PRESET_COOLING_ON
-                and self.hvac_action == HVACAction.COOLING
-            ):
-                return HVACMode.COOL
-        return hvac_mode if hvac_mode else HVACMode.OFF
+        return self._multimatic_mode()[self.active_mode.current][0]
 
     @property
     def min_temp(self) -> float:
@@ -505,11 +477,11 @@ class ZoneClimate(AbstractZoneClimate):
 
     _MULTIMATIC_TO_HA: dict[Mode, list] = {
         OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
-        OperatingModes.DAY: [None, PRESET_HOME],
-        OperatingModes.NIGHT: [None, PRESET_SLEEP],
+        OperatingModes.DAY: [HVACMode.HEAT, PRESET_HOME],
+        OperatingModes.NIGHT: [HVACMode.OFF, PRESET_SLEEP],
         OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
-        OperatingModes.ON: [None, PRESET_COOLING_ON],
-        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
+        OperatingModes.ON: [HVACMode.COOL, PRESET_COOLING_ON],
+        OperatingModes.QUICK_VETO: [HVACMode.HEAT, PRESET_QUICK_VETO],
         QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
         QuickModes.PARTY: [HVACMode.OFF, PRESET_HOME],
         QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],
@@ -547,11 +519,11 @@ class ZoneClimateSenso(AbstractZoneClimate):
 
     _SENSO_TO_HA: dict[Mode, list] = {
         OperatingModes.TIME_CONTROLLED: [HVACMode.AUTO, PRESET_COMFORT],
-        OperatingModes.DAY: [None, PRESET_HOME],
-        OperatingModes.NIGHT: [None, PRESET_SLEEP],
+        OperatingModes.DAY: [HVACMode.HEAT, PRESET_HOME],
+        OperatingModes.NIGHT: [HVACMode.OFF, PRESET_SLEEP],
         OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
-        OperatingModes.MANUAL: [None, PRESET_COOLING_ON],
-        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
+        OperatingModes.MANUAL: [HVACMode.COOL, PRESET_COOLING_ON],
+        OperatingModes.QUICK_VETO: [HVACMode.HEAT, PRESET_QUICK_VETO],
         QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
         QuickModes.PARTY: [HVACMode.OFF, PRESET_HOME],
         QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],

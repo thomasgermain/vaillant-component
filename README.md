@@ -105,14 +105,14 @@ This will allow you to create some buttons in UI to activate/deactivate quick mo
 
 #### Modes mapping
 
-| Multimatic mode         | HA HVAC          | HA preset                  |
-|-------------------------|------------------|----------------------------|
-| AUTO                    | AUTO             | COMFORT                    |
-| OFF                     | OFF              | /                          |
-| QUICK_VETO              | Depends on state | PRESET_QUICK_VETO (custom) |
-| SYSTEM_OFF (quick mode) | OFF              | PRESET_SYSTEM_OFF (custom) |
-| HOLIDAY (quick mode)    | OFF              | PRESET_AWAY                |
-| MANUAL                  | Depends on state | PRESET_HOME                |
+| Multimatic mode         | HA HVAC | HA preset                  |
+|-------------------------|---------|----------------------------|
+| AUTO                    | AUTO    | COMFORT                    |
+| OFF                     | OFF     | /                          |
+| QUICK_VETO              | HEAT    | PRESET_QUICK_VETO (custom) |
+| SYSTEM_OFF (quick mode) | OFF     | PRESET_SYSTEM_OFF (custom) |
+| HOLIDAY (quick mode)    | OFF     | PRESET_AWAY                |
+| MANUAL                  | HEAT    | PRESET_HOME                |
 
 #### Available HVAC mode
 
@@ -137,22 +137,22 @@ configurable for a zone)
 
 #### Modes mapping
 
-| Vaillant Mode                   | HA HVAC          | HA preset                  |
-|---------------------------------|------------------|----------------------------|
-| AUTO / TIMED CONTROLLED         | AUTO             | PRESET_COMFORT             |
-| DAY                             | Depends on state | PRESET_HOME                |
-| NIGHT                           | Depends on state | PRESET_SLEEP               |
-| MANUAL (= cooling)              | Depends on state | PRESET_COOLING_ON          |
-| OFF                             | OFF              | /                          |
-| ON (= cooling ON)               | Depends on state | PRESET_COOLING_ON (custom) |
-| QUICK_VETO                      | Depends on state | PRESET_QUICK_VETO (custom) |
-| ONE_DAY_AT_HOME (quick mode)    | AUTO             | PRESET_HOME                |
-| PARTY (quick mode)              | OFF              | PRESET_HOME                |
-| VENTILATION_BOOST (quick mode)  | FAN_ONLY         | /                          | 
-| ONE_DAY_AWAY (quick mode)       | OFF              | PRESET_AWAY                |
-| SYSTEM_OFF (quick mode)         | OFF              | PRESET_SYSTEM_OFF (custom) |
-| HOLIDAY (quick mode)            | OFF              | PRESET_AWAY                |
-| COOLING_FOR_X_DAYS (quick mode) | COOL             | /                          |
+| Vaillant Mode                   | HA HVAC  | HA preset                  |
+|---------------------------------|----------|----------------------------|
+| AUTO / TIMED CONTROLLED         | AUTO     | PRESET_COMFORT             |
+| DAY                             | HEAT     | PRESET_HOME                |
+| NIGHT                           | OFF      | PRESET_SLEEP               |
+| MANUAL (= cooling)              | COOL     | PRESET_COOLING_ON          |
+| OFF                             | OFF      | /                          |
+| ON (= cooling ON)               | COOL     | PRESET_COOLING_ON (custom) |
+| QUICK_VETO                      | HEAT     | PRESET_QUICK_VETO (custom) |
+| ONE_DAY_AT_HOME (quick mode)    | AUTO     | PRESET_HOME                |
+| PARTY (quick mode)              | OFF      | PRESET_HOME                |
+| VENTILATION_BOOST (quick mode)  | FAN_ONLY | /                          | 
+| ONE_DAY_AWAY (quick mode)       | OFF      | PRESET_AWAY                |
+| SYSTEM_OFF (quick mode)         | OFF      | PRESET_SYSTEM_OFF (custom) |
+| HOLIDAY (quick mode)            | OFF      | PRESET_AWAY                |
+| COOLING_FOR_X_DAYS (quick mode) | COOL     | /                          |
 
 #### Available HVAC mode
 
