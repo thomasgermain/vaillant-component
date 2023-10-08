@@ -10,17 +10,11 @@ MULTIMATIC = "MULTIMATIC"
 ENTITIES = "entities"
 
 # list of platforms into entity are created
-PLATFORMS = ["binary_sensor", "sensor", "water_heater", "climate", "fan"]
+PLATFORMS = ["binary_sensor", "sensor", "climate", "fan"]
 
 # climate custom presets
-PRESET_DAY = "day"
-PRESET_COOLING_ON = "cooling_on"
-PRESET_MANUAL = "manual"
-PRESET_SYSTEM_OFF = "system_off"
-PRESET_PARTY = "party"
-PRESET_HOLIDAY = "holiday"
-PRESET_QUICK_VETO = "quick_veto"
-PRESET_COOLING_FOR_X_DAYS = "cooling_for_x_days"
+PRESET_SYSTEM_OFF = "System off"
+PRESET_QUICK_VETO = "Quick Veto"
 
 
 # default values for configuration

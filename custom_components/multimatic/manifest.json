@@ -1,18 +1,16 @@
 {
   "domain": "multimatic",
   "name": "Multimatic",
-  "config_flow": true,
-  "documentation": "https://github.com/thomasgermain/vaillant-component",
-  "issue_tracker": "https://github.com/thomasgermain/vaillant-component/issues",
-  "requirements": [
-    "pymultimatic==0.7.3"
-  ],
-  "ssdp": [],
-  "zeroconf": [],
-  "homekit": {},
-  "dependencies": [],
   "codeowners": ["@thomasgermain"],
-  "version": "1.16.3",
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/thomasgermain/vaillant-component",
+  "homekit": {},
+  "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "integration_type": "hub"
+  "issue_tracker": "https://github.com/thomasgermain/vaillant-component/issues",
+  "requirements": ["pymultimatic==0.7.3"],
+  "ssdp": [],
+  "version": "1.17.0b1",
+  "zeroconf": []
 }

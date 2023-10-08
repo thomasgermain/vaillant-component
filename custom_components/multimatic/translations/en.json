@@ -28,5 +28,117 @@
                 }
             }
         }
+    },
+    "services": {
+    "remove_quick_mode": {
+      "name": "Remove quick mode",
+      "description": "Remove quick mode for the whole system."
+    },
+    "remove_holiday_mode": {
+      "name": "Remove holiday mode",
+      "description": "Remove holiday mode."
+    },
+    "set_quick_mode": {
+      "name": "Set quick mode",
+      "description": "Set quick mode for the while system.",
+      "fields": {
+        "quick_mode": {
+          "name": "Quick mode",
+          "description": "Name of the quick mode to set."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Number of days the quick mode should last."
+        }
+      }
+    },
+    "set_holiday_mode": {
+      "name": "Set holiday mode",
+      "description": "Set holiday mode.",
+      "fields": {
+        "start_date": {
+          "name": "Start date",
+          "description": "Start date of the holiday mode YYYY-MM-DD format."
+        },
+        "end_date": {
+          "name": "End date",
+          "description": "End date of the holiday mode, YYYY-MM-DD format."
+        },
+        "temperature": {
+          "name": "Target temperature",
+          "description": "temperature to maintain while holiday mode is active."
+        }
+      }
+    },
+    "set_quick_veto": {
+      "name": "Set a quick veto",
+      "description": "Set a quick veto for a climate entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Climate entity id to which quick veto should be set."
+        },
+        "temperature": {
+          "name": "Target temperature",
+          "description": "Target temperature to be applied while quick veto is running on."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Duration (in minutes) of the quick veto. Min 30min, max 1440 (24 hours). If not specified, the default (configured) duration is applied."
+        }
+      }
+    },
+    "remove_quick_veto": {
+      "name": "Remove quick veto",
+      "description": "Remove a quick veto for a climate entity.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Climate entity id to which quick veto should be removed."
+        }
+      }
+    },
+    "request_hvac_update": {
+      "name": "Request HVAC update",
+      "description": "Ask multimatic API to get data from your installation."
+    },
+    "set_ventilation_day_level": {
+      "name": "Set day level ventilation",
+      "description": "Set day level ventilation.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Entity id of the fan."
+        },
+        "level": {
+          "name": "level",
+          "description": "Level to set."
+        }
+      }
+    },
+    "set_ventilation_night_level": {
+      "name": "Set night level ventilation",
+      "description": "Set night level ventilation.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Entity id of the fan."
+        },
+        "level": {
+          "name": "level",
+          "description": "Level to set."
+        }
+      }
+    },
+    "set_datetime": {
+      "name": "Set datetime",
+      "description": "Set multimatic system datetime.",
+      "fields": {
+        "datetime": {
+          "name": "datetime",
+          "description": "The datetime to set."
+        }
+      }
     }
+  }
 }

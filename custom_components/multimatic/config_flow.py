@@ -13,25 +13,10 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import (
-    CONF_APPLICATION,
-    CONF_SERIAL_NUMBER,
-    DEFAULT_SCAN_INTERVAL,
-    DOMAIN,
-    MULTIMATIC,
-    SENSO,
-)
+from . import DATA_SCHEMA
+from .const import CONF_APPLICATION, DEFAULT_SCAN_INTERVAL, DOMAIN, SENSO
 
 _LOGGER = logging.getLogger(__name__)
-
-DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_USERNAME): str,
-        vol.Required(CONF_PASSWORD): str,
-        vol.Optional(CONF_SERIAL_NUMBER): str,
-        vol.Required(CONF_APPLICATION, default=MULTIMATIC): vol.In([MULTIMATIC, SENSO]),
-    }
-)
 
 
 async def validate_input(hass: core.HomeAssistant, data):
