@@ -279,6 +279,8 @@ class MultimaticApi:
             self._quick_mode = mode
             touch_system = True
         else:
+            if self._application == SENSO and mode == OperatingModes.AUTO:
+                mode = OperatingModes.TIME_CONTROLLED
             await self._manager.set_hot_water_operating_mode(hotwater.id, mode)
             hotwater.operating_mode = mode
 
