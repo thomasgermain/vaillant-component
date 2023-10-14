@@ -625,6 +625,7 @@ class DHWClimate(MultimaticClimate):
         QuickModes.HOTWATER_BOOST: [HVACMode.HEAT, PRESET_BOOST],
         QuickModes.PARTY: [HVACMode.OFF, PRESET_HOME],
         OperatingModes.ON: [HVACMode.HEAT, PRESET_NONE],
+        OperatingModes.MANUAL: [HVACMode.HEAT, PRESET_NONE],
         OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
         OperatingModes.TIME_CONTROLLED: [HVACMode.AUTO, PRESET_COMFORT],
     }
