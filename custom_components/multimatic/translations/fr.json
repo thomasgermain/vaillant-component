@@ -28,5 +28,117 @@
         }
       }
     }
+  },
+  "services": {
+    "remove_quick_mode": {
+      "name": "Supprimer le mode de fonctionnement spécial",
+      "description": "Supprimer le mode de fonctionnement spécial"
+    },
+    "remove_holiday_mode": {
+      "name": "Annuler mode vacance",
+      "description": "Annuler mode vacance."
+    },
+    "set_quick_mode": {
+      "name": "Activer le mode de fonctionnement spécial",
+      "description": "Activer le mode de fonctionnement spécial.",
+      "fields": {
+        "quick_mode": {
+          "name": "Mode de fonctionnement spécial",
+          "description": "Nom du fonctionnement spécial à activer."
+        },
+        "duration": {
+          "name": "Durée",
+          "description": "Durée, en jours, du fonctionnement spécial."
+        }
+      }
+    },
+    "set_holiday_mode": {
+      "name": "Activer mode vacance",
+      "description": "Activer mode vacance",
+      "fields": {
+        "start_date": {
+          "name": "Date de début",
+          "description": "Date de début du mode vacance, au format YYYY-MM-DD."
+        },
+        "end_date": {
+          "name": "Date de fin",
+          "description": "Date de fin du mode vacance, au format YYYY-MM-DD."
+        },
+        "temperature": {
+          "name": "Température désirée",
+          "description": "Température désirée pendant que le mode vacance est actif."
+        }
+      }
+    },
+    "set_quick_veto": {
+      "name": "Activer quick veto",
+      "description": "Activer un quick veto pour une zone ou pièce.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Entity id de la zone ou de la pièce pour laquelle le quick veto est souhaité."
+        },
+        "temperature": {
+          "name": "Température désirée",
+          "description": "Température désirée pour le quick veto."
+        },
+        "duration": {
+          "name": "Durée",
+          "description": "Durée (en minutes) du quick veto. Min 30min, max 1440 (24 hours). Si non spécifié, la durée par défaut est appliquée."
+        }
+      }
+    },
+    "remove_quick_veto": {
+      "name": "Supprimer quick veto",
+      "description": "Supprimer un quick veto pour une zone ou pièce.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Entity id de la zone ou de la pièce pour laquelle le quick veto doit être supprimé."
+        }
+      }
+    },
+    "request_hvac_update": {
+      "name": "Demande de mise à jour HVAC",
+      "description": "Rafraichit les données du système."
+    },
+    "set_ventilation_day_level": {
+      "name": "Modifier la ventilation en mode jour",
+      "description": "Modifier la ventilation en mode jour.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Entity id de la ventilation."
+        },
+        "level": {
+          "name": "Niveau",
+          "description": "Le niveau souhaité."
+        }
+      }
+    },
+    "set_ventilation_night_level": {
+      "name": "Modifier la ventilation en mode nuit",
+      "description": "Modifier la ventilation en mode nuit.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity id",
+          "description": "Entity id de la ventilation."
+        },
+        "level": {
+          "name": "Niveau",
+          "description": "Le niveau souhaité."
+        }
+      }
+    },
+    "set_datetime": {
+      "name": "Modifier la date et de l'heure",
+      "description": "Modifier la date et de l'heure",
+      "fields": {
+        "datetime": {
+          "name": "Date & heure",
+          "description": "Date & heure souhaitée."
+        }
+      }
+    }
   }
 }

@@ -4,10 +4,17 @@ from datetime import datetime, timedelta
 import logging
 
 from pymultimatic.api import ApiError, defaults
+import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import (
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+    CONF_USERNAME,
+    EVENT_HOMEASSISTANT_STOP,
+)
 from homeassistant.core import HomeAssistant
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
 
@@ -19,14 +26,30 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     FORCE_RELOGIN_TIMEDELTA,
+    MULTIMATIC,
     PLATFORMS,
     RELOGIN_TASK_CLEAN,
+    SENSO,
     SERVICES_HANDLER,
 )
 from .coordinator import MultimaticApi, MultimaticCoordinator
 from .service import SERVICES, MultimaticServiceHandler
 
 _LOGGER = logging.getLogger(__name__)
+
+DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Optional(CONF_SERIAL_NUMBER): cv.string,
+        vol.Required(CONF_APPLICATION, default=MULTIMATIC): vol.In([MULTIMATIC, SENSO]),
+    }
+)
+
+CONFIG_SCHEMA = vol.Schema(
+    {DOMAIN: DATA_SCHEMA},
+    extra=vol.ALLOW_EXTRA,
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

@@ -44,12 +44,6 @@ from .const import (
     DEFAULT_QUICK_VETO_DURATION,
     DHW,
     DOMAIN as MULTIMATIC,
-    PRESET_COOLING_FOR_X_DAYS,
-    PRESET_COOLING_ON,
-    PRESET_DAY,
-    PRESET_HOLIDAY,
-    PRESET_MANUAL,
-    PRESET_PARTY,
     PRESET_QUICK_VETO,
     PRESET_SYSTEM_OFF,
     ROOMS,
@@ -68,6 +62,12 @@ _FUNCTION_TO_HVAC_ACTION: dict[ActiveFunction, HVACAction] = {
     ActiveFunction.COOLING: HVACAction.COOLING,
     ActiveFunction.HEATING: HVACAction.HEATING,
     ActiveFunction.STANDBY: HVACAction.IDLE,
+}
+
+_FUNCTION_TO_HVAC_MODE: dict[ActiveFunction, HVACMode] = {
+    ActiveFunction.COOLING: HVACMode.COOL,
+    ActiveFunction.HEATING: HVACMode.HEAT,
+    ActiveFunction.STANDBY: HVACMode.OFF,
 }
 
 
@@ -279,10 +279,10 @@ class RoomClimate(MultimaticClimate):
     _MULTIMATIC_TO_HA: dict[Mode, list] = {
         OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
         OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
-        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
+        OperatingModes.QUICK_VETO: [HVACMode.HEAT, PRESET_QUICK_VETO],
         QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
-        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
-        OperatingModes.MANUAL: [None, PRESET_MANUAL],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_AWAY],
+        OperatingModes.MANUAL: [HVACMode.HEAT, PRESET_HOME],
     }
 
     _HA_MODE_TO_MULTIMATIC = {
@@ -292,8 +292,7 @@ class RoomClimate(MultimaticClimate):
 
     _HA_PRESET_TO_MULTIMATIC = {
         PRESET_COMFORT: OperatingModes.AUTO,
-        PRESET_MANUAL: OperatingModes.MANUAL,
-        PRESET_SYSTEM_OFF: QuickModes.SYSTEM_OFF,
+        PRESET_HOME: OperatingModes.MANUAL,
     }
 
     def __init__(
@@ -335,16 +334,7 @@ class RoomClimate(MultimaticClimate):
     @property
     def hvac_mode(self) -> HVACMode:
         """Get the hvac mode based on multimatic mode."""
-        hvac_mode = RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
-        if not hvac_mode:
-            if self.active_mode.current in (
-                OperatingModes.MANUAL,
-                OperatingModes.QUICK_VETO,
-            ):
-                if self.hvac_action == HVACAction.HEATING:
-                    return HVACMode.HEAT
-                return HVACMode.OFF
-        return hvac_mode
+        return RoomClimate._MULTIMATIC_TO_HA[self.active_mode.current][0]
 
     @property
     def min_temp(self) -> float:
@@ -378,8 +368,9 @@ class RoomClimate(MultimaticClimate):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
-        mode = RoomClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
-        await self.coordinator.api.set_room_operating_mode(self, mode)
+        if preset_mode != "":
+            mode = RoomClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
+            await self.coordinator.api.set_room_operating_mode(self, mode)
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -421,8 +412,6 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
         super().__init__(coordinator, zone.id)
 
         if not zone.cooling:
-            self._supported_presets.remove(PRESET_COOLING_ON)
-            self._supported_presets.remove(PRESET_COOLING_FOR_X_DAYS)
             self._supported_hvac.remove(HVACMode.COOL)
 
         if not ventilation:
@@ -448,26 +437,10 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
     @property
     def hvac_mode(self) -> HVACMode:
         """Get the hvac mode based on multimatic mode."""
-        current_mode = self.active_mode.current
-        hvac_mode = self._multimatic_mode()[current_mode][0]
-        if not hvac_mode:
-            if (
-                current_mode
-                in [
-                    OperatingModes.DAY,
-                    OperatingModes.NIGHT,
-                    QuickModes.PARTY,
-                    OperatingModes.QUICK_VETO,
-                ]
-                and self.hvac_action == HVACAction.HEATING
-            ):
-                return HVACMode.HEAT
-            if (
-                self.preset_mode in (PRESET_COOLING_ON, PRESET_COOLING_FOR_X_DAYS)
-                and self.hvac_action == HVACAction.COOLING
-            ):
-                return HVACMode.COOL
-        return hvac_mode if hvac_mode else HVACMode.OFF
+        hvac_mode = self._multimatic_mode()[self.active_mode.current][0]
+        if not hvac_mode:  # if no hvac mode defined, guess it from zone function
+            return _FUNCTION_TO_HVAC_MODE[self.component.active_function]
+        return hvac_mode
 
     @property
     def min_temp(self) -> float:
@@ -504,8 +477,9 @@ class AbstractZoneClimate(MultimaticClimate, ABC):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
-        mode = self._ha_preset()[preset_mode]
-        await self.coordinator.api.set_zone_operating_mode(self, mode)
+        if preset_mode != "":
+            mode = self._ha_preset()[preset_mode]
+            await self.coordinator.api.set_zone_operating_mode(self, mode)
 
 
 class ZoneClimate(AbstractZoneClimate):
@@ -513,18 +487,21 @@ class ZoneClimate(AbstractZoneClimate):
 
     _MULTIMATIC_TO_HA: dict[Mode, list] = {
         OperatingModes.AUTO: [HVACMode.AUTO, PRESET_COMFORT],
-        OperatingModes.DAY: [None, PRESET_DAY],
-        OperatingModes.NIGHT: [None, PRESET_SLEEP],
+        OperatingModes.DAY: [HVACMode.HEAT, PRESET_HOME],
+        OperatingModes.NIGHT: [HVACMode.OFF, PRESET_SLEEP],
         OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
-        OperatingModes.ON: [None, PRESET_COOLING_ON],
-        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
+        OperatingModes.ON: [
+            None,
+            PRESET_NONE,
+        ],  # can be heating or cooling, this is determined at runtime
+        OperatingModes.QUICK_VETO: [HVACMode.HEAT, PRESET_QUICK_VETO],
         QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
-        QuickModes.PARTY: [None, PRESET_PARTY],
+        QuickModes.PARTY: [HVACMode.OFF, PRESET_HOME],
         QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],
         QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
         QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
-        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
-        QuickModes.COOLING_FOR_X_DAYS: [None, PRESET_COOLING_FOR_X_DAYS],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_AWAY],
+        QuickModes.COOLING_FOR_X_DAYS: [HVACMode.COOL, PRESET_NONE],
     }
 
     _HA_MODE_TO_MULTIMATIC = {
@@ -536,14 +513,8 @@ class ZoneClimate(AbstractZoneClimate):
 
     _HA_PRESET_TO_MULTIMATIC = {
         PRESET_COMFORT: OperatingModes.AUTO,
-        PRESET_DAY: OperatingModes.DAY,
-        PRESET_SLEEP: OperatingModes.NIGHT,
-        PRESET_COOLING_ON: OperatingModes.ON,
         PRESET_HOME: QuickModes.ONE_DAY_AT_HOME,
-        PRESET_PARTY: QuickModes.PARTY,
         PRESET_AWAY: QuickModes.ONE_DAY_AWAY,
-        PRESET_SYSTEM_OFF: QuickModes.SYSTEM_OFF,
-        PRESET_COOLING_FOR_X_DAYS: QuickModes.COOLING_FOR_X_DAYS,
     }
 
     def _ha_mode(self):
@@ -561,18 +532,17 @@ class ZoneClimateSenso(AbstractZoneClimate):
 
     _SENSO_TO_HA: dict[Mode, list] = {
         OperatingModes.TIME_CONTROLLED: [HVACMode.AUTO, PRESET_COMFORT],
-        OperatingModes.DAY: [None, PRESET_DAY],
-        OperatingModes.NIGHT: [None, PRESET_SLEEP],
+        OperatingModes.DAY: [HVACMode.HEAT, PRESET_HOME],
+        OperatingModes.NIGHT: [HVACMode.OFF, PRESET_SLEEP],
         OperatingModes.OFF: [HVACMode.OFF, PRESET_NONE],
-        OperatingModes.MANUAL: [None, PRESET_COOLING_ON],
-        OperatingModes.QUICK_VETO: [None, PRESET_QUICK_VETO],
-        QuickModes.ONE_DAY_AT_HOME: [HVACMode.AUTO, PRESET_HOME],
-        QuickModes.PARTY: [None, PRESET_PARTY],
-        QuickModes.VENTILATION_BOOST: [HVACMode.FAN_ONLY, PRESET_NONE],
+        OperatingModes.MANUAL: [
+            None,
+            PRESET_NONE,
+        ],  # can be heating or cooling, this is determined at runtime
         QuickModes.ONE_DAY_AWAY: [HVACMode.OFF, PRESET_AWAY],
         QuickModes.SYSTEM_OFF: [HVACMode.OFF, PRESET_SYSTEM_OFF],
-        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_HOLIDAY],
-        QuickModes.COOLING_FOR_X_DAYS: [None, PRESET_COOLING_FOR_X_DAYS],
+        QuickModes.HOLIDAY: [HVACMode.OFF, PRESET_AWAY],
+        QuickModes.COOLING_FOR_X_DAYS: [HVACMode.COOL, PRESET_NONE],
     }
     _HA_MODE_TO_SENSO = {
         HVACMode.AUTO: OperatingModes.TIME_CONTROLLED,
@@ -583,14 +553,8 @@ class ZoneClimateSenso(AbstractZoneClimate):
 
     _HA_PRESET_TO_SENSO = {
         PRESET_COMFORT: OperatingModes.TIME_CONTROLLED,
-        PRESET_DAY: OperatingModes.DAY,
-        PRESET_SLEEP: OperatingModes.NIGHT,
-        PRESET_COOLING_ON: OperatingModes.MANUAL,
         PRESET_HOME: QuickModes.ONE_DAY_AT_HOME,
-        PRESET_PARTY: QuickModes.PARTY,
         PRESET_AWAY: QuickModes.ONE_DAY_AWAY,
-        PRESET_SYSTEM_OFF: QuickModes.SYSTEM_OFF,
-        PRESET_COOLING_FOR_X_DAYS: QuickModes.COOLING_FOR_X_DAYS,
     }
 
     def _ha_mode(self):
@@ -686,9 +650,10 @@ class DHWClimate(MultimaticClimate):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new target preset mode."""
-        mode = DHWClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
-        _LOGGER.info("Will set %s operation mode to hot water", mode)
-        await self.coordinator.api.set_hot_water_operating_mode(self, mode)
+        if preset_mode != "":
+            mode = DHWClimate._HA_PRESET_TO_MULTIMATIC[preset_mode]
+            _LOGGER.info("Will set %s operation mode to hot water", mode)
+            await self.coordinator.api.set_hot_water_operating_mode(self, mode)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""
