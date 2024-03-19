@@ -1,3 +1,5 @@
+## ⚠️ The multimatic API is not accessible anymore (or will be soon). The integration with myVaillant is here: [mypyllant-component](https://github.com/signalkraft/mypyllant-component). This integration will still work if you haven't migrated yet. But once you migrated, you should switch to the myVaillant one.
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/thomasgermain/vaillant-component?style=for-the-badge)
 
